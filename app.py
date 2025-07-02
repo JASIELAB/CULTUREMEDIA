@@ -43,11 +43,18 @@ st.table([
     {"Lote": "MS-BAP1ANA0.1-250625-LT01", "Frascos": 40, "Restantes": 35},
     {"Lote": "½MS-KIN0.5AIA0.05-010725-LT02", "Frascos": 30, "Restantes": 28},
 ])
-
-# 👇 PEGA AQUÍ EL BLOQUE DE RECETAS
 import pandas as pd
+import streamlit as st
 
-# Leer Excel y procesar recetas
+# --- Sección de Recetas de Medios ---
+st.markdown("---")
+st.subheader("📖 Recetas de Medios de Cultivo")
+
+# Cargar Excel
+excel_file = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
+excel_data = pd.ExcelFile(excel_file)
+
+# Función para extraer cada receta
 def extraer_receta(df):
     df_clean = df.iloc[9:, [0, 1, 2]].copy()
     df_clean.columns = ["Componente", "Fórmula", "Concentración"]
@@ -55,20 +62,49 @@ def extraer_receta(df):
     df_clean.reset_index(drop=True, inplace=True)
     return df_clean
 
-excel_data = pd.ExcelFile("RECETAS MEDIOS ACTUAL JUNIO251.xlsx")
-sheets_content = {sheet: excel_data.parse(sheet) for sheet in excel_data.sheet_names}
-
+# Cargar todas las hojas del Excel
 recetas = {
-    nombre: extraer_receta(sheets_content[nombre])
-    for nombre in sheets_content
-    if not sheets_content[nombre].empty
+    nombre: extraer_receta(excel_data.parse(nombre))
+    for nombre in excel_data.sheet_names
+    if not excel_data.parse(nombre).empty
 }
 
-# Mostrar módulo de recetas
+# Menú para seleccionar receta
+opcion = st.selectbox("Selecciona una receta:", list(recetas.keys()))
+
+# Mostrar tabla
+st.write(f"**Receta para el medio `{opcion}`:**")
+st.dataframe(recetas[opcion], use_container_width=True)
+
+import pandas as pd
+import streamlit as st
+
+# --- Sección de Recetas de Medios ---
 st.markdown("---")
 st.subheader("📖 Recetas de Medios de Cultivo")
 
-seleccion = st.selectbox("Selecciona una receta:", list(recetas.keys()))
-st.write(f"**Receta para el medio `{seleccion}`:**")
-st.dataframe(recetas[seleccion], use_container_width=True)
+# Cargar Excel
+excel_file = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
+excel_data = pd.ExcelFile(excel_file)
 
+# Función para extraer cada receta
+def extraer_receta(df):
+    df_clean = df.iloc[9:, [0, 1, 2]].copy()
+    df_clean.columns = ["Componente", "Fórmula", "Concentración"]
+    df_clean = df_clean.dropna(subset=["Componente", "Concentración"], how="all")
+    df_clean.reset_index(drop=True, inplace=True)
+    return df_clean
+
+# Cargar todas las hojas del Excel
+recetas = {
+    nombre: extraer_receta(excel_data.parse(nombre))
+    for nombre in excel_data.sheet_names
+    if not excel_data.parse(nombre).empty
+}
+
+# Menú para seleccionar receta
+opcion = st.selectbox("Selecciona una receta:", list(recetas.keys()))
+
+# Mostrar tabla
+st.write(f"**Receta para el medio `{opcion}`:**")
+st.dataframe(recetas[opcion], use_container_width=True)
