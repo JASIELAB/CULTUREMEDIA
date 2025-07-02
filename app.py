@@ -35,4 +35,3 @@ st.subheader("📋 Registrar nuevo lote")
 medio = st.selectbox("Tipo de medio", ["MS", "½MS", "B5"])
 hormonas = st.text_input("Hormonas (ej. BAP 1, ANA 0.1)")
 volumen = st.number_input("Volumen total (mL)", min_value=100, max_value=5000, step=100)
-fras
