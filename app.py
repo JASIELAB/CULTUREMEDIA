@@ -103,8 +103,9 @@ recetas = {
 }
 
 # Menú para seleccionar receta
-opcion = st.selectbox("Selecciona una receta:", list(recetas.keys()))
+opcion = st.selectbox("Selecciona una receta:", list(recetas.keys()), key="receta_selector")
 
 # Mostrar tabla
 st.write(f"**Receta para el medio `{opcion}`:**")
 st.dataframe(recetas[opcion], use_container_width=True)
+
