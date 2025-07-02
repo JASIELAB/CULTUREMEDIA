@@ -63,23 +63,36 @@ recetas = {
     if not excel_data.parse(hoja).empty
 }
 
+# --- Simulación de inventario (en memoria) ---
+inventario = [
+    {"Lote": "MS-BAP1ANA0.1-250625-LT01", "Frascos": 40, "Restantes": 35},
+    {"Lote": "½MS-KIN0.5AIA0.05-010725-LT02", "Frascos": 30, "Restantes": 28},
+]
+
 # --- Secciones ---
 if menu == "Registrar Lote":
     st.subheader("📋 Registrar nuevo lote")
-    medio = st.selectbox("Tipo de medio", list(recetas.keys()))
-    st.write(f"**Receta para el medio `{medio}`:**")
-    st.dataframe(recetas[medio], use_container_width=True)
 
-    hormonas = st.text_input("Hormonas (ej. BAP 1, ANA 0.1)")
-    volumen = st.number_input("Volumen total (mL)", min_value=100, max_value=5000, step=100)
-    frascos = st.number_input("Número de frascos", min_value=1, max_value=500, step=1)
+    anio = st.text_input("Año (ej. 2025)")
+    receta = st.selectbox("Receta", list(recetas.keys()))
+    solucion_stock = st.text_input("Solución stock (ej. BAP 1mg/mL)")
+    semana = st.text_input("Semana (ej. 27)")
+    dia = st.text_input("Día (ej. Lunes)")
+    preparacion = st.text_input("Número de preparación (ej. 01)")
+
+    st.write(f"**Receta para `{receta}`:**")
+    st.dataframe(recetas[receta], use_container_width=True)
 
     if st.button("Registrar lote"):
-        codigo = f"{medio}-{hormonas.replace(' ', '').upper()}-{datetime.today().strftime('%d%m%y')}-LT01"
+        codigo = f"{anio}-W{semana}-{dia}-R{receta}-P{preparacion}"
         st.success("✅ Lote registrado exitosamente.")
         st.code(f"Código generado: {codigo}")
 
-        qr_info = f"Lote: {codigo}\nMedio: {medio}\nHormonas: {hormonas}\nVolumen: {volumen} mL\nFrascos: {frascos}"
+        qr_info = (
+            f"Código: {codigo}\n"
+            f"Año: {anio}\nSemana: {semana}\nDía: {dia}\n"
+            f"Receta: {receta}\nStock: {solucion_stock}\nPreparación: {preparacion}"
+        )
         buffer = generar_qr(qr_info)
 
         st.image(buffer, caption="Código QR del lote")
@@ -92,10 +105,16 @@ if menu == "Registrar Lote":
 
 elif menu == "Consultar Stock":
     st.subheader("📦 Stock simulado")
-    st.table([
-        {"Lote": "MS-BAP1ANA0.1-250625-LT01", "Frascos": 40, "Restantes": 35},
-        {"Lote": "½MS-KIN0.5AIA0.05-010725-LT02", "Frascos": 30, "Restantes": 28},
-    ])
+    st.table(inventario)
+
+    # Botón para descargar inventario
+    df_inventario = pd.DataFrame(inventario)
+    st.download_button(
+        label="⬇️ Descargar inventario como Excel",
+        data=generar_excel(df_inventario),
+        file_name="Inventario_medios.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 elif menu == "Recetas de medios":
     st.subheader("📖 Consulta de recetas")
