@@ -42,6 +42,32 @@ if st.button("Registrar lote"):
     codigo = f"{medio}-{hormonas.replace(' ', '').upper()}-{datetime.today().strftime('%d%m%y')}-LT01"
     st.success("✅ Lote registrado exitosamente.")
     st.code(f"Código generado: {codigo}")
+import qrcode
+from PIL import Image
+from io import BytesIO
+
+# --- Generar y mostrar código QR después de registrar lote ---
+if st.button("Registrar lote"):
+    codigo = f"{medio}-{hormonas.replace(' ', '').upper()}-{datetime.today().strftime('%d%m%y')}-LT01"
+    st.success("✅ Lote registrado exitosamente.")
+    st.code(f"Código generado: {codigo}")
+
+    # Generar imagen QR
+    qr = qrcode.make(codigo)
+    buffer = BytesIO()
+    qr.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    st.image(qr, caption="Código QR del lote")
+
+    # Botón para descargar QR
+    st.download_button(
+        label="⬇️ Descargar QR",
+        data=buffer,
+        file_name=f"{codigo}.png",
+        mime="image/png"
+    )
+
 
 # --- Stock simulado ---
 st.markdown("---")
