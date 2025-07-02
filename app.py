@@ -22,7 +22,9 @@ st.table([
     {"Lote": "MS-BAP1ANA0.1-250625-LT01", "Frascos": 40, "Restantes": 35},
     {"Lote": "½MS-KIN0.5AIA0.05-010725-LT02", "Frascos": 30, "Restantes": 28},
     import streamlit as st
-# Mostrar los logotipos desde la raíz del repositorio
+    
+st.title("Mi App de Cultivo In Vitro")
+
 col1, col2 = st.columns([1, 5])
 
 with col1:
