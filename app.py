@@ -1,17 +1,35 @@
 import streamlit as st
 
-st.set_page_config(page_title="Trazabilidad", layout="wide")
+# Configuración general de la app
+st.set_page_config(
+    page_title="Trazabilidad de Medios",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Encabezado
-st.title("🧪 Sistema de Trazabilidad de Medios")
+# Menú lateral
+with st.sidebar:
+    st.title("🧭 Menú")
+    st.markdown("- Página principal")
+    st.markdown("- Registro de lotes")
+    st.markdown("- Etiquetas")
+    st.markdown("- Trazabilidad")
+    st.markdown("- Configuración")
 
-# Mostrar logotipos
-col1, col2 = st.columns([1, 5])
+# Logotipos pequeños en los extremos
+col1, col2, col3 = st.columns([1, 6, 1])
 
 with col1:
-    st.image("logo_blackberry.png", width=80)
+    st.image("logo_blackberry.png", width=60)
 
 with col2:
-    st.image("logo_planasa.png", use_column_width=True)
+    st.markdown("<h1 style='text-align: center;'>🧪 Sistema de Trazabilidad de Medios</h1>", unsafe_allow_html=True)
 
-st.write("Bienvenido al sistema. Aquí podrás gestionar lotes de medios in vitro.")
+with col3:
+    st.image("logo_planasa.png", width=100)
+
+# Línea divisoria
+st.markdown("---")
+
+# Contenido inicial
+st.write("Bienvenido al sistema. Aquí podrás registrar, visualizar y gestionar lotes de medios de cultivo in vitro.")
