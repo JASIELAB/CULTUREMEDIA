@@ -1,8 +1,9 @@
 import streamlit as st
+from datetime import datetime
 
-# Configuración general de la app
+# Configuración inicial de la app
 st.set_page_config(
-    page_title="Trazabilidad de Medios",
+    page_title="Medios de Cultivo InVitro",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -10,26 +11,28 @@ st.set_page_config(
 # Menú lateral
 with st.sidebar:
     st.title("🧭 Menú")
-    st.markdown("- Página principal")
-    st.markdown("- Registro de lotes")
-    st.markdown("- Etiquetas")
-    st.markdown("- Trazabilidad")
+    st.markdown("- Registrar Lote")
+    st.markdown("- Consultar Stock")
+    st.markdown("- Imprimir Etiquetas")
     st.markdown("- Configuración")
 
-# Logotipos pequeños en los extremos
+# Cabecera con logotipos
 col1, col2, col3 = st.columns([1, 6, 1])
 
 with col1:
     st.image("logo_blackberry.png", width=60)
 
 with col2:
-    st.markdown("<h1 style='text-align: center;'>🧪 Sistema de Trazabilidad de Medios</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
 
 with col3:
-    st.image("logo_planasa.png", width=100)
+    st.image("logo_planasa.png", width=80)
 
-# Línea divisoria
 st.markdown("---")
 
-# Contenido inicial
-st.write("Bienvenido al sistema. Aquí podrás registrar, visualizar y gestionar lotes de medios de cultivo in vitro.")
+# Formulario de registro
+st.subheader("📋 Registrar nuevo lote")
+medio = st.selectbox("Tipo de medio", ["MS", "½MS", "B5"])
+hormonas = st.text_input("Hormonas (ej. BAP 1, ANA 0.1)")
+volumen = st.number_input("Volumen total (mL)", min_value=100, max_value=5000, step=100)
+fras
