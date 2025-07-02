@@ -21,4 +21,14 @@ st.subheader("📦 Stock simulado")
 st.table([
     {"Lote": "MS-BAP1ANA0.1-250625-LT01", "Frascos": 40, "Restantes": 35},
     {"Lote": "½MS-KIN0.5AIA0.05-010725-LT02", "Frascos": 30, "Restantes": 28},
+    import streamlit as st
+
+# Mostrar los logotipos
+col1, col2 = st.columns([1, 5])
+
+with col1:
+    st.image("assets/logo_blackberry.png", width=80)
+
+with col2:
+    st.image("assets/logo_planasa.png", use_column_width=True)
 ])
