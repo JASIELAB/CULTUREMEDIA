@@ -33,8 +33,9 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     w, h = size
     img = Image.new("RGB", (w, h), "white")
     draw = ImageDraw.Draw(img)
+    # Fuente más pequeña para mejorar legibilidad y encajar mejor
     try:
-        font = ImageFont.truetype("DejaVuSans-Bold.ttf", 16)
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", 12)
     except IOError:
         font = ImageFont.load_default()
     y = 5
@@ -45,7 +46,7 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
             text_height = bbox[3] - bbox[1]
         except AttributeError:
             _, text_height = font.getsize(line)
-        y += text_height + 4
+        y += text_height + 2
     qr_img = Image.open(qr_buf).resize((80, 80))
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
@@ -96,7 +97,6 @@ for idx, (label, icon) in enumerate(menu):
 choice = st.session_state.choice
 st.markdown("---")
 
-# --- Secciones ---
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     año = st.number_input("Año", 2000, 2100, value=date.today().year)
@@ -212,7 +212,7 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascos: {r['Frascos']}"
+                f"Frascros: {r['Frascros']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
