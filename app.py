@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import qrcode
 from io import BytesIO
-from datetime import date, datetime
+from datetime import date
 import os
 from PIL import Image, ImageDraw, ImageFont
 
@@ -104,17 +104,6 @@ if choice == "Registrar Lote":
         inv_df.loc[len(inv_df)] = [code,año,receta,solucion,semana,dia,prep,frascos,ph_aj,ph_fin,ce,fecha]
         inv_df.to_csv(INV_FILE, index=False)
         st.success("✅ Lote registrado")
-        info = [
-            f"Código: {code}", f"Año: {año}", f"Receta: {receta}", f"Solución: {solucion}",
-            f"Semana: {semana}", f"Día: {dia} Prep {prep}", f"Frascos: {frascos}",
-            f"pH ajustado: {ph_aj}", f"pH final: {ph_fin}", f"CE final: {ce}"
-        ]
-        qr = make_qr(code)
-        label = make_label(info, qr)
-        buf = BytesIO()
-        label.save(buf, format="PNG")
-        st.image(buf.getvalue(), use_column_width=False)
-        st.download_button("⬇️ Descargar etiqueta PNG", buf.getvalue(), file_name=f"etiqueta_{code}.png")
 
 # --- Consultar Stock (últimos lotes) ---
 elif choice == "Consultar Stock":
@@ -164,7 +153,7 @@ elif choice == "Bajas Inventario":
         motivo = st.text_area("Motivo consumo/merma")
         if st.button("Aplicar baja medios"):
             idx = inv_df[inv_df['Código']==lote_sel].index[0]
-            inv_df.at[idx,'Frascos'] = inv_df.at[idx,'Frascos'] - num
+            inv_df.at[idx,'Frascos'] -= num
             inv_df.to_csv(INV_FILE, index=False)
             st.success("Frascos descontados.")
     else:
@@ -181,7 +170,28 @@ elif choice == "Recetas de Medios":
     if sel:
         st.dataframe(recipes[sel])
 
-# --- Imprimir Etiquetas (pendiente PDF múltiple) ---
+# --- Imprimir Etiquetas ---
 elif choice == "Imprimir Etiquetas":
     st.subheader("🖨️ Imprimir Etiquetas")
-    st.info("Pendiente implementar PDF de etiquetas múltiples.")
+    codes = st.multiselect("Selecciona lote(s) para etiqueta:", inv_df['Código'])
+    labels = []
+    for c in codes:
+        row = inv_df[inv_df['Código']==c].iloc[0]
+        info = [
+            f"Código: {row['Código']}", f"Año: {row['Año']}", f"Receta: {row['Receta']}",
+            f"Solución: {row['Solución']}", f"Semana: {row['Semana']}",
+            f"Día: {row['Día']} Prep {row['Preparación']}", f"Frascos: {row['Frascos']}",
+            f"pH aj: {row['pH_Ajustado']}", f"pH fin: {row['pH_Final']}", f"CE: {row['CE_Final']}"
+        ]
+        qr = make_qr(row['Código'])
+        img = make_label(info, qr)
+        labels.append(img)
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        st.image(buf.getvalue(), use_column_width=False)
+    if labels:
+        if st.button("Generar PDF etiquetas"):
+            pdf_buf = BytesIO()
+            labels[0].save(pdf_buf, "PDF", save_all=True, append_images=labels[1:])
+            pdf_buf.seek(0)
+            st.download_button("⬇️ Descargar PDF etiquetas", pdf_buf, file_name="etiquetas_lotes.pdf", mime="application/pdf")
