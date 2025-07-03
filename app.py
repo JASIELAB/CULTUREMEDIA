@@ -194,48 +194,12 @@ elif section == "Soluciones Stock":
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
         # Generar y mostrar QR
-        qr_text = f"Código: {cods}
-Fecha: {f.strftime('%Y-%m-%d')}
-Cantidad: {cant}
-Responsable: {resp}"
-        qr_data = make_qr(qr_text)
-        st.image(qr_data, width=200)
-        st.download_button(
-            "⬇️ Descargar etiqueta PNG",
-            data=qr_data,
-            file_name=f"sol_{cods}.png",
-            mime="image/png"
-        )
-    st.markdown("---")
-    # Mostrar y borrar registros existentes
-    st.subheader("📋 Registro de soluciones stock")
-    borrar = st.multiselect(
-        "Selecciona solución(es) a borrar:",
-        options=sol_df['Código_Solución'].tolist()
-    )
-    if borrar:
-        if st.button("🗑️ Borrar soluciones seleccionadas"):
-            sol_df = sol_df[~sol_df['Código_Solución'].isin(borrar)]
-            sol_df.to_csv(SOL_FILE, index=False)
-            st.success(f"Se borraron {len(borrar)} solución(es).")
-            st.experimental_rerun()
-    st.dataframe(sol_df)
-    st.download_button(
-        "⬇️ Descargar Soluciones",
-        data=download_excel(sol_df),
-        file_name="soluciones.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-# --- Sección: Recetas ---
-elif section == "Recetas":
-    st.subheader("📖 Recetas de Medios")
-    if not recipes:
-        st.info("No se encontró el archivo de recetas.")
-    else:
-        sel = st.selectbox("Selecciona medio", list(recipes.keys()))
-        dfm = recipes.get(sel, pd.DataFrame())
-        st.dataframe(dfm)
-        if not dfm.empty:
-            buf = BytesIO(); dfm.to_excel(buf, index=False); buf.seek(0)
-            st.download_button("⬇️ Descargar Receta Excel", data=buf.getvalue(), file_name=f"receta_{sel}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        qr_text = (
+    f"Código: {cods}
+"
+    f"Fecha: {f.strftime('%Y-%m-%d')}
+"
+    f"Cantidad: {cant}
+"
+    f"Responsable: {resp}"
+)
