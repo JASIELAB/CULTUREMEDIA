@@ -6,40 +6,9 @@ from datetime import date
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-# --- Helpers ---
-def to_excel_bytes(df: pd.DataFrame) -> bytes:
-    buf = BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False)
-    buf.seek(0)
-    return buf.getvalue()
-
-# Generate QR bytes from text
-def make_qr(text: str) -> bytes:
-    img = qrcode.make(text)
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf.getvalue()
-
-# Create label image (400x130) with text info and QR
-def make_label(info: list, qr_bytes: bytes, size=(400, 130)) -> Image.Image:
-    label = Image.new("RGB", size, "white")
-    draw = ImageDraw.Draw(label)
-    try:
-        font = ImageFont.truetype("arial.ttf", 14)
-    except:
-        font = ImageFont.load_default()
-    y = 10
-    for line in info:
-        draw.text((10, y), line, fill="black", font=font)
-        y += 18
-    qr_img = Image.open(BytesIO(qr_bytes)).resize((80, 80))
-    label.paste(qr_img, (size[0] - 90, 10))
-    return label
-
-# --- Page config & styles ---
+# --- Configuración de página y estilos ---
 st.set_page_config(page_title="Medios de Cultivo InVitro", layout="wide")
+# Paleta rojo y blanco
 PRIMARY_COLOR = "#D32F2F"
 ACCENT_COLOR = "#FFFFFF"
 BG_COLOR = "#FFEBEE"
@@ -51,25 +20,24 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Data files ---
+# --- Archivos y DataFrames ---
 INV_FILE = "inventario_medios.csv"
 SOL_FILE = "soluciones_stock.csv"
 REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
-# --- Load or init dataframes ---
 inv_cols = ["Código","Año","Receta","Solución","Semana","Día","Preparación","Frascos","pH_Ajustado","pH_Final","CE_Final","Fecha"]
 if os.path.exists(INV_FILE):
-    inv_df = pd.read_csv(INV_FILE).reindex(columns=inv_cols)
+    inv_df = pd.read_csv(INV_FILE)[inv_cols]
 else:
     inv_df = pd.DataFrame(columns=inv_cols)
 
 sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
 if os.path.exists(SOL_FILE):
-    sol_df = pd.read_csv(SOL_FILE).reindex(columns=sol_cols)
+    sol_df = pd.read_csv(SOL_FILE)[sol_cols]
 else:
     sol_df = pd.DataFrame(columns=sol_cols)
 
-# --- Load recetas ---
+# --- Recetas ---
 recipes = {}
 if os.path.exists(REC_FILE):
     xls = pd.ExcelFile(REC_FILE)
@@ -80,127 +48,176 @@ if os.path.exists(REC_FILE):
             sub.columns = ["Componente","Fórmula","Concentración"]
             recipes[sheet] = sub
 
-# --- Sidebar menu ---
-st.sidebar.title("🧭 Menú")
-choice = st.sidebar.radio("Selecciona una sección:", [
-    "Registrar Lote",
-    "Consultar Stock",
-    "Inventario",
-    "Historial",
-    "Soluciones Stock",
-    "Recetas de Medios",
-    "Imprimir Etiquetas",
-    "Administrar Sistema"
-])
+# --- Funciones auxiliares ---
+def make_qr(text: str) -> bytes:
+    img = qrcode.make(text)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf.getvalue()
 
-# --- Header ---
+def make_label(info: list, qr_bytes: bytes) -> Image.Image:
+    label = Image.new("RGB", (400, 130), "white")
+    draw = ImageDraw.Draw(label)
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+    except:
+        font = ImageFont.load_default()
+    y = 10
+    for line in info:
+        draw.text((10, y), line, fill="black", font=font)
+        y += 18
+    qr_img = Image.open(BytesIO(qr_bytes)).resize((80, 80))
+    label.paste(qr_img, (310, 10))
+    return label
+
+def to_excel_bytes(df: pd.DataFrame) -> bytes:
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    buf.seek(0)
+    return buf.getvalue()
+
+# --- Menú lateral ---
+with st.sidebar:
+    st.title("🗭 Menú")
+    choice = st.radio("Selecciona sección:", [
+        "Registrar Lote","Consultar Stock","Inventario","Historial",
+        "Soluciones Stock","Recetas","Baja de Inventario","Imprimir Etiquetas"
+    ])
+
+# --- Cabecera ---
 col1, col2 = st.columns([1, 8])
 col1.image("logo_blackberry.png", width=60)
 col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- Sections ---
-if choice == "Registrar Lote":
-    st.subheader("📝 Registrar Lote")
+# --- Secciones ---
+
+def section_registrar_lote():
+    st.subheader("📋 Registrar Nuevo Lote")
     año = st.text_input("Año (ej. 2025)")
-    receta = st.selectbox("Receta", ["Selecciona..."] + list(recipes.keys()))
-    solucion = st.text_input("Solución stock")
-    semana = st.number_input("Semana", 1, 52)
-    dia = st.number_input("Día", 1, 7)
+    receta = st.selectbox("Receta", ["Selecciona"] + list(recipes.keys()))
+    solucion = st.selectbox("Solución stock", ["Selecciona"] + sol_df['Código_Solución'].fillna("").tolist())
+    semana = st.text_input("Semana")
+    dia = st.text_input("Día")
     prep = st.text_input("Número de preparación")
-    frascos = st.number_input("Cantidad de frascos", min_value=1, max_value=999, step=1)
-    ph_aj = st.number_input("pH ajustado", format="%.1f")
-    ph_fin = st.number_input("pH final", format="%.1f")
-    ce = st.number_input("CE final (mS/cm)", format="%.2f")
+    frascos = st.number_input("Cantidad de frascos", min_value=1, max_value=999, value=1)
+    ph_aj = st.number_input("pH ajustado", value=5.8, format="%.2f")
+    ph_fin = st.number_input("pH final", value=5.8, format="%.2f")
+    ce = st.number_input("CE final (mS/cm)", value=1.0, format="%.2f")
     if st.button("Registrar lote"):
-        code = f"{año}{receta}{solucion}{semana}{dia}{prep}".replace(' ', '')
+        cod_base = f"{año}-{receta}-{solucion}-{semana}-{dia}-{prep}".replace(' ','')
         fecha = date.today().isoformat()
-        inv_df.loc[len(inv_df)] = [code, año, receta, solucion, semana, dia, prep, frascos, ph_aj, ph_fin, ce, fecha]
+        inv_df.loc[len(inv_df)] = [cod_base, año, receta, solucion, semana, dia, prep, frascos, ph_aj, ph_fin, ce, fecha]
         inv_df.to_csv(INV_FILE, index=False)
-        st.success("Lote registrado.")
+        st.success("Lote registrado exitosamente.")
 
-elif choice == "Consultar Stock":
-    st.subheader("🔍 Stock Actual de Medios")
+
+def section_consultar_stock():
+    st.subheader("📦 Stock Actual")
     st.dataframe(inv_df)
-    st.subheader("🧪 Inventario Soluciones Stock")
+    st.write("---")
+    st.subheader("🔬 Inventario Soluciones Stock")
     st.dataframe(sol_df)
+    st.download_button("⬇️ Descargar Stock Excel", data=to_excel_bytes(inv_df), file_name="stock_actual.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-elif choice == "Inventario":
-    st.subheader("📋 Inventario Actual")
+
+def section_inventario():
+    st.subheader("📊 Inventario Completo")
     st.dataframe(inv_df)
+    st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario_completo.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-elif choice == "Historial":
-    st.subheader("📜 Historial")
+
+def section_historial():
+    st.subheader("📚 Historial")
     if inv_df.empty:
         st.info("No hay registros.")
-    else:
-        start = st.date_input("Desde", value=pd.to_datetime(inv_df['Fecha']).dt.date.min())
-        end = st.date_input("Hasta", value=pd.to_datetime(inv_df['Fecha']).dt.date.max())
-        df = inv_df.copy()
-        df['Fecha'] = pd.to_datetime(df['Fecha']).dt.date
-        filt = df[(df['Fecha'] >= start) & (df['Fecha'] <= end)]
-        st.dataframe(filt)
+        return
+    df = inv_df.copy()
+    df['Fecha'] = pd.to_datetime(df['Fecha'])
+    start = st.date_input("Desde", value=df['Fecha'].dt.date.min())
+    end = st.date_input("Hasta", value=df['Fecha'].dt.date.max())
+    filt = df[(df['Fecha'].dt.date >= start) & (df['Fecha'].dt.date <= end)]
+    st.dataframe(filt)
+    st.download_button("⬇️ Descargar Historial Excel", data=to_excel_bytes(filt), file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-elif choice == "Soluciones Stock":
-    st.subheader("🧪 Registro de Soluciones Stock")
-    fecha = st.date_input("Fecha preparación", value=date.today())
-    cantidad = st.text_input("Cantidad (g/mL)")
-    cod_s = st.text_input("Código solución stock")
-    responsable = st.text_input("Responsable")
+
+def section_soluciones_stock():
+    st.subheader("🧪 Registro de soluciones stock")
+    fdate = st.date_input("Fecha preparación", value=date.today())
+    qty = st.text_input("Cantidad (g/mL)")
+    code_s = st.text_input("Código solución")
+    who = st.text_input("Responsable")
     regulador = st.text_input("Regulador crecimiento")
-    obs = st.text_area("Observaciones")
+    obs2 = st.text_area("Observaciones")
     if st.button("Registrar solución"):
-        sol_df.loc[len(sol_df)] = [fecha.isoformat(), cantidad, cod_s, responsable, regulador, obs]
+        sol_df.loc[len(sol_df)] = [fdate.isoformat(), qty, code_s, who, regulador, obs2]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
 
-elif choice == "Recetas de Medios":
-    st.subheader("📖 Recetas de Medios de Cultivo")
-    medio = st.selectbox("Selecciona receta", list(recipes.keys()))
-    if medio:
-        st.dataframe(recipes[medio])
 
-elif choice == "Imprimir Etiquetas":
+def section_recetas():
+    st.subheader("📖 Recetas de Medios")
+    if not recipes:
+        st.info("No se encontró archivo de recetas.")
+        return
+    sel = st.selectbox("Selecciona medio:", list(recipes.keys()))
+    st.dataframe(recipes[sel])
+
+
+def section_baja_inventario():
+    st.subheader("⚠️ Baja de Inventario")
+    opt = st.radio("Ruta de baja:", ["Consumo","Merma"])
+    lote = st.selectbox("Lote:", inv_df['Código'].tolist())
+    fecha_salida = st.date_input("Fecha de salida")
+    variedad = st.text_input("Variedad")
+    cantidad = st.number_input("Cantidad de frascos", min_value=1, max_value=inv_df.loc[inv_df['Código']==lote,'Frascos'].iloc[0])
+    if st.button("Aplicar baja"):
+        idx = inv_df.index[inv_df['Código']==lote][0]
+        inv_df.at[idx,'Frascos'] -= cantidad
+        inv_df.to_csv(INV_FILE, index=False)
+        st.success(f"Baja aplicada por {opt}: {cantidad} frascos de {variedad}.")
+
+
+def section_imprimir_etiquetas():
     st.subheader("🖨️ Imprimir Etiquetas")
     if inv_df.empty:
-        st.info("No hay lotes.")
-    else:
-        lote = st.selectbox("Selecciona lote", inv_df['Código'].tolist())
-        copies = st.number_input("Cantidad de etiquetas", min_value=1, value=1)
-        if st.button("Generar PDF"):
-            row = inv_df.loc[inv_df['Código'] == lote].iloc[0]
-            images = []
-            for i in range(1, copies+1):
-                code_i = f"{lote}-{i}"
-                info = [
-                    f"Código: {code_i}",
-                    f"Año: {row['Año']}",
-                    f"Receta: {row['Receta']}",
-                    f"Frascos: {row['Frascos']}",
-                    f"pH ajustado: {row['pH_Ajustado']}",
-                    f"pH final: {row['pH_Final']}",
-                    f"CE final: {row['CE_Final']}"
-                ]
-                qr = make_qr(code_i)
-                label = make_label(info, qr)
-                images.append(label)
-            pdf_buf = BytesIO()
-            images[0].save(pdf_buf, format='PDF', save_all=True, append_images=images[1:])
-            pdf_buf.seek(0)
-            st.download_button("⬇️ Descargar etiquetas PDF", data=pdf_buf.getvalue(), file_name=f"etiquetas_{lote}.pdf", mime="application/pdf")
+        st.info("No hay lotes registrados.")
+        return
+    cod_base = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
+    copies = st.number_input("Número de etiquetas a generar", min_value=1, value=1)
+    if st.button("Generar PDF de etiquetas"):
+        row = inv_df.loc[inv_df['Código']==cod_base].iloc[0]
+        images = []
+        for i in range(1, copies+1):
+            cod_i = f"{cod_base}-{i}"
+            info = [
+                f"Código: {cod_i}",
+                f"Año: {row['Año']}",
+                f"Receta: {row['Receta']}",
+                f"Frascos: {row['Frascos']}",
+                f"pH ajustado: {row['pH_Ajustado']}",
+                f"pH final: {row['pH_Final']}",
+                f"CE: {row['CE_Final']}"
+            ]
+            qr_bytes = make_qr("\n".join(info))
+            label_img = make_label(info, qr_bytes)
+            images.append(label_img)
+        pdf_buf = BytesIO()
+        images[0].save(pdf_buf, format='PDF', save_all=True, append_images=images[1:])
+        pdf_buf.seek(0)
+        st.download_button("⬇️ Descargar etiquetas PDF", data=pdf_buf, file_name=f"etiquetas_{cod_base}.pdf", mime="application/pdf")
 
-elif choice == "Administrar Sistema":
-    st.subheader("⚙️ Administrar Sistema")
-    if st.button("Limpiar inventario medios"):
-        inv_df.drop(inv_df.index, inplace=True)
-        inv_df.to_csv(INV_FILE, index=False)
-        st.success("Inventario medios limpiado.")
-    if st.button("Limpiar soluciones stock"):
-        sol_df.drop(sol_df.index, inplace=True)
-        sol_df.to_csv(SOL_FILE, index=False)
-        st.success("Inventario soluciones limpiado.")
-
-# --- Sidebar downloads ---
-st.sidebar.markdown("---")
-st.sidebar.download_button("⬇️ Descargar Inventario Medios", data=to_excel_bytes(inv_df), file_name="inventario_medios.xlsx")
-st.sidebar.download_button("⬇️ Descargar Soluciones Stock", data=to_excel_bytes(sol_df), file_name="soluciones_stock.xlsx")
+# --- Dispatcher ---
+sections = {
+    "Registrar Lote": section_registrar_lote,
+    "Consultar Stock": section_consultar_stock,
+    "Inventario": section_inventario,
+    "Historial": section_historial,
+    "Soluciones Stock": section_soluciones_stock,
+    "Recetas": section_recetas,
+    "Baja de Inventario": section_baja_inventario,
+    "Imprimir Etiquetas": section_imprimir_etiquetas
+}
+sections.get(choice, lambda: None)()
