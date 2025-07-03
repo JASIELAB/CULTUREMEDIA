@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import qrcode
 from io import BytesIO
-from datetime import date
+from datetime import date, datetime
 import os
 from PIL import Image, ImageDraw, ImageFont
 
@@ -16,6 +16,7 @@ st.markdown(f"""
 <style>
     .stApp {{ background-color: {BG_COLOR}; color: {TEXT_COLOR}; }}
     .stButton>button, .stDownloadButton>button {{ background-color: {PRIMARY_COLOR}; color: {ACCENT_COLOR}; }}
+    .dataframe table {{ background-color: white; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -56,20 +57,21 @@ def make_qr(text: str) -> bytes:
     return buf.getvalue()
 
 def make_label(info: list, qr_bytes: bytes) -> Image.Image:
-    width, height = 600, 200
+    # Tamaño reducido: 500x150, QR 80x80
+    width, height = 500, 150
     label = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(label)
     try:
-        font = ImageFont.truetype("arial.ttf", 16)
+        font = ImageFont.truetype("arial.ttf", 14)
     except:
         font = ImageFont.load_default()
-    x_text, y_text = 20, 20
-    line_h = 24
+    x_text, y_text = 10, 10
+    line_h = 20
     for line in info:
         draw.text((x_text, y_text), line, fill="black", font=font)
         y_text += line_h
-    qr_img = Image.open(BytesIO(qr_bytes)).resize((120, 120))
-    qr_x = width - qr_img.width - 20
+    qr_img = Image.open(BytesIO(qr_bytes)).resize((80, 80))
+    qr_x = width - qr_img.width - 10
     qr_y = (height - qr_img.height) // 2
     label.paste(qr_img, (qr_x, qr_y))
     return label
@@ -108,7 +110,8 @@ if choice == "Registrar Lote":
 # --- Consultar Stock (últimos lotes) ---
 elif choice == "Consultar Stock":
     st.subheader("📦 Stock reciente")
-    st.table(inv_df.tail(5))
+    df_recent = inv_df.tail(5)
+    st.dataframe(df_recent.style.set_properties(**{'background-color':'white','color':'black'}))
 
 # --- Inventario Completo ---
 elif choice == "Inventario Completo":
@@ -122,9 +125,9 @@ elif choice == "Incubación":
     df2['Fecha_reg'] = pd.to_datetime(df2['Fecha'])
     df2['Días'] = (pd.Timestamp.today() - df2['Fecha_reg']).dt.days
     def color_row(days):
-        if days>30: return 'background-color: #FFCDD2'
-        if days<7: return 'background-color: #C8E6C9'
-        return 'background-color: #FFF9C4'
+        if days>28: return 'background-color: #FFCDD2'  # rojo
+        if days<7: return 'background-color: #FFF9C4'   # amarillo
+        return 'background-color: #C8E6C9'              # verde
     styled = df2.style.apply(lambda row: [color_row(row['Días']) for _ in row], axis=1)
     st.dataframe(styled)
 
@@ -149,7 +152,8 @@ elif choice == "Bajas Inventario":
     type_ = st.radio("Tipo de baja:", ["Frascos Consumo/Merma", "Eliminar Lote"])
     if type_ == "Frascos Consumo/Merma":
         lote_sel = st.selectbox("Seleccionar lote:", inv_df['Código'])
-        num = st.number_input("# Frascos a dar de baja", min_value=1, max_value=inv_df.loc[inv_df['Código']==lote_sel,'Frascos'].iloc[0])
+        num = st.number_input("# Frascos a dar de baja", min_value=1, 
+                             max_value=int(inv_df.loc[inv_df['Código']==lote_sel,'Frascos'].iloc[0]))
         motivo = st.text_area("Motivo consumo/merma")
         if st.button("Aplicar baja medios"):
             idx = inv_df[inv_df['Código']==lote_sel].index[0]
@@ -181,17 +185,15 @@ elif choice == "Imprimir Etiquetas":
             f"Código: {row['Código']}", f"Año: {row['Año']}", f"Receta: {row['Receta']}",
             f"Solución: {row['Solución']}", f"Semana: {row['Semana']}",
             f"Día: {row['Día']} Prep {row['Preparación']}", f"Frascos: {row['Frascos']}",
-            f"pH aj: {row['pH_Ajustado']}", f"pH fin: {row['pH_Final']}", f"CE: {row['CE_Final']}"
         ]
         qr = make_qr(row['Código'])
         img = make_label(info, qr)
         labels.append(img)
         buf = BytesIO()
         img.save(buf, format="PNG")
-        st.image(buf.getvalue(), use_container_width=True)
-    if labels:
-        if st.button("Generar PDF etiquetas"):
-            pdf_buf = BytesIO()
-            labels[0].save(pdf_buf, "PDF", save_all=True, append_images=labels[1:])
-            pdf_buf.seek(0)
-            st.download_button("⬇️ Descargar PDF etiquetas", pdf_buf, file_name="etiquetas_lotes.pdf", mime="application/pdf")
+        st.image(buf.getvalue(), width=250)
+    if labels and st.button("Generar PDF etiquetas"):
+        pdf_buf = BytesIO()
+        labels[0].save(pdf_buf, "PDF", save_all=True, append_images=labels[1:])
+        pdf_buf.seek(0)
+        st.download_button("⬇️ Descargar PDF etiquetas", pdf_buf, file_name="etiquetas_lotes.pdf", mime="application/pdf")
