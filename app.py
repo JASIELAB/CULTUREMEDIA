@@ -112,7 +112,6 @@ def section_registrar_lote():
         inv_df.to_csv(INV_FILE, index=False)
         st.success("Lote registrado exitosamente.")
 
-
 def section_consultar_stock():
     st.subheader("📦 Stock Actual")
     st.dataframe(inv_df)
@@ -121,12 +120,10 @@ def section_consultar_stock():
     st.subheader("📋 Inventario Soluciones Stock")
     st.dataframe(sol_df)
 
-
 def section_inventario():
     st.subheader("📊 Inventario Completo")
     st.dataframe(inv_df)
     st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario_completo.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 def section_historial():
     st.subheader("📚 Historial")
@@ -140,7 +137,6 @@ def section_historial():
     filt = df[(df['Fecha'].dt.date >= start) & (df['Fecha'].dt.date <= end)]
     st.dataframe(filt)
     st.download_button("⬇️ Descargar Historial Excel", data=to_excel_bytes(filt), file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 def section_soluciones_stock():
     st.subheader("🧪 Registro de soluciones stock")
@@ -158,7 +154,6 @@ def section_soluciones_stock():
     st.subheader("📋 Lista de soluciones stock")
     st.dataframe(sol_df)
 
-
 def section_recetas():
     st.subheader("📖 Recetas de Medios")
     if not recipes:
@@ -166,7 +161,6 @@ def section_recetas():
         return
     sel = st.selectbox("Selecciona medio:", list(recipes.keys()))
     st.dataframe(recipes[sel])
-
 
 def section_incubacion():
     st.subheader("🕒 Días de Incubación")
@@ -186,7 +180,6 @@ def section_incubacion():
         st.markdown(f"<div style='background-color:{color};padding:5px;border-radius:5px;margin-bottom:2px;'>"
                     f"<b>{row['Código']}</b> – {dias} días</div>", unsafe_allow_html=True)
 
-
 def section_bajas_inventario():
     st.subheader("⚠️ Bajas de Inventario")
     tipo = st.radio("Tipo de baja:", ["Medios","Soluciones"])
@@ -195,11 +188,11 @@ def section_bajas_inventario():
             st.info("No hay lotes para dar de baja.")
             return
         select = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
-        cantidad = st.number_input("Cantidad de frascos a dar de baja", min_value=1, max_value=inv_df.loc[inv_df['Código']==select, 'Frascos'].iloc[0], value=1)
+        cantidad = st.number_input("Cantidad de frascos a dar de baja", min_value=1, max_value=int(inv_df.loc[inv_df['Código']==select, 'Frascos'].iloc[0]), value=1)
         motivo = st.text_area("Motivo consumo/merma")
         if st.button("Aplicar baja medios"):
             idx = inv_df[inv_df['Código']==select].index[0]
-            inv_df.at[idx, 'Frascos'] -= cantidad
+            inv_df.at[idx, 'Frascos'] = inv_df.at[idx, 'Frascos'] - cantidad
             inv_df.to_csv(INV_FILE, index=False)
             st.success("Frascos dados de baja.")
     else:
@@ -207,6 +200,31 @@ def section_bajas_inventario():
             st.info("No hay soluciones para dar de baja.")
             return
         select_s = st.selectbox("Selecciona solución:", sol_df['Código_Solución'].tolist())
-        if st.button("Eliminar solución"
+        if st.button("Eliminar solución"):
+            sol_df.drop(sol_df[sol_df['Código_Solución']==select_s].index, inplace=True)
+            sol_df.to_csv(SOL_FILE, index=False)
+            st.success("Solución eliminada.")
 
-}]}
+def section_imprimir_etiquetas():
+    st.subheader("🖨️ Imprimir Etiquetas")
+    st.info("Pendiente implementar PDF de etiquetas múltiples.")
+
+# --- Navegación de secciones ---
+if choice == "Registrar Lote":
+    section_registrar_lote()
+elif choice == "Consultar Stock":
+    section_consultar_stock()
+elif choice == "Inventario":
+    section_inventario()
+elif choice == "Historial":
+    section_historial()
+elif choice == "Soluciones Stock":
+    section_soluciones_stock()
+elif choice == "Recetas":
+    section_recetas()
+elif choice == "Incubación":
+    section_incubacion()
+elif choice == "Bajas Inventario":
+    section_bajas_inventario()
+else:
+    section_imprimir_etiquetas()
