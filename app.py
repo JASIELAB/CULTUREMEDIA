@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import qrcode
 from io import BytesIO
-from datetime import date
+from datetime import date, datetime
 import os
 from PIL import Image, ImageDraw, ImageFont
 
@@ -16,7 +16,7 @@ TEXT_COLOR = "#000000"
 st.markdown(f"""
 <style>
     .stApp {{ background-color: {BG_COLOR}; color: {TEXT_COLOR}; }}
-    div.stButton>button, div.stDownloadButton>button {{ background-color: {PRIMARY_COLOR}; color: {ACCENT_COLOR}; }}
+    .stButton>button, .stDownloadButton>button {{ background-color: {PRIMARY_COLOR}; color: {ACCENT_COLOR}; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -111,120 +111,82 @@ def section_registrar_lote():
         inv_df.loc[len(inv_df)] = [cod_base, año, receta, solucion, semana, dia, prep, frascos, ph_aj, ph_fin, ce, fecha]
         inv_df.to_csv(INV_FILE, index=False)
         st.success("Lote registrado exitosamente.")
-
-def section_consultar_stock():
-    st.subheader("📦 Stock Actual")
-    st.dataframe(inv_df)
-    st.download_button("⬇️ Descargar Stock Excel", data=to_excel_bytes(inv_df), file_name="stock_actual.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     st.markdown("---")
-    st.subheader("📋 Inventario Soluciones Stock")
+    st.subheader("🔬 Inventario de Soluciones Stock")
     st.dataframe(sol_df)
 
-def section_inventario():
-    st.subheader("📊 Inventario Completo")
+
+def section_consultar_stock():
+    st.subheader("🔍 Consultar Stock")
     st.dataframe(inv_df)
-    st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario_completo.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+def section_inventario():
+    st.subheader("📦 Inventario Completo")
+    st.dataframe(inv_df)
+
 
 def section_historial():
-    st.subheader("📚 Historial")
-    if inv_df.empty:
-        st.info("No hay registros.")
-        return
-    df = inv_df.copy()
-    df['Fecha'] = pd.to_datetime(df['Fecha'])
-    start = st.date_input("Desde", value=df['Fecha'].dt.date.min())
-    end = st.date_input("Hasta", value=df['Fecha'].dt.date.max())
-    filt = df[(df['Fecha'].dt.date >= start) & (df['Fecha'].dt.date <= end)]
-    st.dataframe(filt)
-    st.download_button("⬇️ Descargar Historial Excel", data=to_excel_bytes(filt), file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    st.subheader("📜 Historial de Lotes")
+    start = st.date_input("Desde", inv_df['Fecha'].min() if not inv_df.empty else date.today())
+    end = st.date_input("Hasta", date.today())
+    mask = (pd.to_datetime(inv_df['Fecha']) >= pd.to_datetime(start)) & (pd.to_datetime(inv_df['Fecha']) <= pd.to_datetime(end))
+    st.dataframe(inv_df[mask])
+
 
 def section_soluciones_stock():
-    st.subheader("🧪 Registro de soluciones stock")
-    fdate = st.date_input("Fecha preparación", value=date.today())
-    qty = st.text_input("Cantidad (g/mL)")
-    code_s = st.text_input("Código solución")
-    who = st.text_input("Responsable")
-    regulador = st.text_input("Regulador crecimiento")
-    obs2 = st.text_area("Observaciones")
+    st.subheader("📊 Registro de Soluciones Stock")
+    fecha = st.date_input("Fecha")
+    cantidad = st.text_input("Cantidad (ej. 1 g)")
+    cod = st.text_input("Código de solución")
+    resp = st.text_input("Responsable")
+    reg = st.text_input("Regulador")
+    obs = st.text_area("Observaciones")
     if st.button("Registrar solución"):
-        sol_df.loc[len(sol_df)] = [fdate.isoformat(), qty, code_s, who, regulador, obs2]
+        sol_df.loc[len(sol_df)] = [fecha.isoformat(), cantidad, cod, resp, reg, obs]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
     st.markdown("---")
-    st.subheader("📋 Lista de soluciones stock")
+    st.subheader("🗒 Inventario de Soluciones Stock")
     st.dataframe(sol_df)
+
 
 def section_recetas():
     st.subheader("📖 Recetas de Medios")
-    if not recipes:
-        st.info("No se encontró archivo de recetas.")
-        return
-    sel = st.selectbox("Selecciona medio:", list(recipes.keys()))
-    st.dataframe(recipes[sel])
+    opc = st.selectbox("Selecciona una receta:", list(recipes.keys()))
+    st.dataframe(recipes[opc])
+
 
 def section_incubacion():
-    st.subheader("🕒 Días de Incubación")
-    if inv_df.empty:
-        st.info("No hay lotes registrados.")
-        return
-    today = date.today()
-    for _, row in inv_df.iterrows():
-        fecha = date.fromisoformat(row['Fecha'])
-        dias = (today - fecha).days
-        if dias > 30:
-            color = 'red'
-        elif dias < 7:
-            color = 'yellow'
+    st.subheader("⏳ Incubación de Lotes")
+    df = inv_df.copy()
+    df['Días'] = (pd.to_datetime(date.today()) - pd.to_datetime(df['Fecha'])).dt.days
+    def color_row(days):
+        if days > 30:
+            return ['background-color: #EF9A9A']*len(df.columns)
+        elif days < 7:
+            return ['background-color: #A5D6A7']*len(df.columns)
         else:
-            color = 'green'
-        st.markdown(f"<div style='background-color:{color};padding:5px;border-radius:5px;margin-bottom:2px;'>"
-                    f"<b>{row['Código']}</b> – {dias} días</div>", unsafe_allow_html=True)
+            return ['background-color: #FFF59D']*len(df.columns)
+    st.dataframe(df.style.apply(lambda x: color_row(x['Días']), axis=1))
+
 
 def section_bajas_inventario():
     st.subheader("⚠️ Bajas de Inventario")
-    tipo = st.radio("Tipo de baja:", ["Medios","Soluciones"])
-    if tipo == "Medios":
-        if inv_df.empty:
-            st.info("No hay lotes para dar de baja.")
-            return
-        select = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
-        cantidad = st.number_input("Cantidad de frascos a dar de baja", min_value=1, max_value=int(inv_df.loc[inv_df['Código']==select, 'Frascos'].iloc[0]), value=1)
-        motivo = st.text_area("Motivo consumo/merma")
-        if st.button("Aplicar baja medios"):
-            idx = inv_df[inv_df['Código']==select].index[0]
-            inv_df.at[idx, 'Frascos'] = inv_df.at[idx, 'Frascos'] - cantidad
-            inv_df.to_csv(INV_FILE, index=False)
-            st.success("Frascos dados de baja.")
-    else:
-        if sol_df.empty:
-            st.info("No hay soluciones para dar de baja.")
-            return
-        select_s = st.selectbox("Selecciona solución:", sol_df['Código_Solución'].tolist())
-        if st.button("Eliminar solución"):
-            sol_df.drop(sol_df[sol_df['Código_Solución']==select_s].index, inplace=True)
-            sol_df.to_csv(SOL_FILE, index=False)
-            st.success("Solución eliminada.")
+    code = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
+    qty = st.number_input("Cantidad a dar de baja", min_value=1, max_value=999)
+    motivo = st.text_input("Motivo consumo/merma")
+    if st.button("Aplicar baja"):
+        idx = inv_df[inv_df['Código']==code].index[0]
+        inv_df.at[idx,'Frascos'] = max(inv_df.at[idx,'Frascos'] - qty, 0)
+        inv_df.to_csv(INV_FILE, index=False)
+        st.success("Stock actualizado.")
+    st.markdown("---")
+    st.dataframe(inv_df)
+
 
 def section_imprimir_etiquetas():
     st.subheader("🖨️ Imprimir Etiquetas")
-    st.info("Pendiente implementar PDF de etiquetas múltiples.")
-
-# --- Navegación de secciones ---
-if choice == "Registrar Lote":
-    section_registrar_lote()
-elif choice == "Consultar Stock":
-    section_consultar_stock()
-elif choice == "Inventario":
-    section_inventario()
-elif choice == "Historial":
-    section_historial()
-elif choice == "Soluciones Stock":
-    section_soluciones_stock()
-elif choice == "Recetas":
-    section_recetas()
-elif choice == "Incubación":
-    section_incubacion()
-elif choice == "Bajas Inventario":
-    section_bajas_inventario()
-else:
-    section_imprimir_etiquetas()
+    sel = st.multiselect("Selecciona lotes:", inv_df['Código'].tolist())
+    if st.button("Generar PDF etiquetas"):
+        labels=[]
