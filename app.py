@@ -193,17 +193,26 @@ elif section == "Soluciones Stock":
         sol_df.loc[len(sol_df)] = [f.strftime("%Y-%m-%d"), cant, cods, resp, obs]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
-        qr_data = make_qr(f"Código: {cods}
-Fecha: {f}
-Cant: {cant}
-Resp: {resp}")
+        # Generar y mostrar QR
+        qr_text = f"Código: {cods}
+Fecha: {f.strftime('%Y-%m-%d')}
+Cantidad: {cant}
+Responsable: {resp}"
+        qr_data = make_qr(qr_text)
         st.image(qr_data, width=200)
-        st.download_button("⬇️ Descargar etiqueta PNG", data=qr_data, file_name=f"sol_{cods}.png", mime="image/png")
+        st.download_button(
+            "⬇️ Descargar etiqueta PNG",
+            data=qr_data,
+            file_name=f"sol_{cods}.png",
+            mime="image/png"
+        )
     st.markdown("---")
     # Mostrar y borrar registros existentes
     st.subheader("📋 Registro de soluciones stock")
-    # Selección de registros a borrar
-    borrar = st.multiselect("Selecciona solución(es) a borrar:", options=sol_df['Código_Solución'].tolist())
+    borrar = st.multiselect(
+        "Selecciona solución(es) a borrar:",
+        options=sol_df['Código_Solución'].tolist()
+    )
     if borrar:
         if st.button("🗑️ Borrar soluciones seleccionadas"):
             sol_df = sol_df[~sol_df['Código_Solución'].isin(borrar)]
@@ -211,10 +220,12 @@ Resp: {resp}")
             st.success(f"Se borraron {len(borrar)} solución(es).")
             st.experimental_rerun()
     st.dataframe(sol_df)
-    st.download_button("⬇️ Descargar Soluciones", data=download_excel(sol_df), file_name="soluciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")("⬇️ Descargar etiqueta PNG", data=qr_data, file_name=f"sol_{cods}.png", mime="image/png")
-    st.markdown("---")
-    st.dataframe(sol_df)
-    st.download_button("⬇️ Descargar Soluciones", data=download_excel(sol_df), file_name="soluciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    st.download_button(
+        "⬇️ Descargar Soluciones",
+        data=download_excel(sol_df),
+        file_name="soluciones.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 # --- Sección: Recetas ---
 elif section == "Recetas":
