@@ -96,7 +96,7 @@ choice = st.sidebar.radio("Selecciona sección:", sections)
 st.title("Control de Medios de Cultivo InVitro")
 st.markdown("---")
 
-# --- Sección Registrar Lote ---
+# Registrar Lote
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     año = st.number_input("Año (ej. 2025)", min_value=2000, max_value=2100, value=date.today().year)
@@ -118,29 +118,34 @@ if choice == "Registrar Lote":
         inv_df.to_csv(INV_FILE, index=False)
         st.success(f"Lote {code} registrado.")
 
-# --- Sección Consultar Stock ---
+# Consultar Stock
 elif choice == "Consultar Stock":
     st.header("📦 Inventario Medio de Cultivo")
     st.dataframe(inv_df.style.set_properties(**{"background-color":"white"}), use_container_width=True)
     st.download_button("⬇️ Descargar Inventario Excel", df_to_excel_bytes(inv_df), "inventario_medios.xlsx")
 
-# --- Sección Inventario Completo ---
+# Inventario Completo
 elif choice == "Inventario Completo":
     st.header("🔍 Inventario Completo")
     st.dataframe(inv_df, use_container_width=True)
 
-# --- Sección Incubación ---
+# Incubación
 elif choice == "Incubación":
     st.header("⏱ Estado de incubación")
     df2 = inv_df.copy()
-    df2["Días"] = (pd.to_datetime(date.today().isoformat()) - pd.to_datetime(df2["Fecha"])).dt.days
-    def color_row(d):
-        if d>28: return ["background-color: #ffcdd2"]
-        if d>7: return ["background-color: #c8e6c9"]
-        return ["background-color: #fff9c4"]
-    st.dataframe(df2.style.apply(lambda row: color_row(row["Días"]), axis=1), use_container_width=True)
+    df2["Días"] = (pd.to_datetime(date.today().isoformat()) - pd.to_datetime(df2["Fecha"]))\
+.dt.days
+    def get_row_color(d):
+        if d > 28:
+            return "#ffcdd2"
+        elif d > 7:
+            return "#c8e6c9"
+        else:
+            return "#fff9c4"
+    styled = df2.style.apply(lambda row: [f"background-color: {get_row_color(row['Días'])}"]*len(row), axis=1)
+    st.dataframe(styled, use_container_width=True)
 
-# --- Sección Soluciones Stock ---
+# Soluciones Stock
 elif choice == "Soluciones Stock":
     st.header("🧪 Registro de soluciones stock")
     fecha = st.date_input("Fecha")
@@ -155,19 +160,19 @@ elif choice == "Soluciones Stock":
         sol_df.loc[len(sol_df)] = new2
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
-        label_bytes = make_qr(code_s)
+        qr_bytes = make_qr(code_s)
         info = [f"Código: {code_s}", f"Fecha: {fecha.isoformat()}", f"Cantidad: {cantidad}",
                 f"Responsable: {responsable}", f"Regulador: {regulador}", f"Obs: {obs}"]
-        lbl = make_label_text(info, label_bytes, size=(300,100))
+        lbl = make_label_text(info, qr_bytes, size=(300,100))
         st.image(lbl)
 
-# --- Sección Recetas de Medios ---
+# Recetas de Medios
 elif choice == "Recetas de Medios":
     st.header("📖 Recetas de Medios de Cultivo")
     sel = st.selectbox("Selecciona receta", list(recipes.keys()))
     st.dataframe(recipes[sel], use_container_width=True)
 
-# --- Sección Imprimir Etiquetas ---
+# Imprimir Etiquetas
 elif choice == "Imprimir Etiquetas":
     st.header("🖨 Imprimir Etiquetas")
     options = inv_df["Código"].tolist()
@@ -181,9 +186,6 @@ elif choice == "Imprimir Etiquetas":
                     f"Sol: {row['Solución']}", f"Sem: {row['Semana']}", f"Día: {row['Día']} Prep{row['Preparación']}",
                     f"Frascos: {row['Frascos']}", f"pH Aj: {row['pH_Ajustado']}", f"pH Fin: {row['pH_Final']}", f"CE: {row['CE_Final']}"]
             imgs.append(make_label_text(info, qr_b, size=(300,100)))
-        # Mostrar etiquetas y ofrecer descarga manual
         for im in imgs:
             st.image(im)
         st.info("Descarga cada imagen con clic derecho o solicita PDF por implementar.")
-
-# --- Fin de código ---
