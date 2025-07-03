@@ -85,7 +85,12 @@ with st.sidebar:
 col1, col2, col3 = st.columns([1, 6, 1])
 col1.image("logo_blackberry.png", width=60)
 col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
-col3.image("logo_plantainvitro.png", width=80)
+from PIL import Image  # asegúrate de tener PIL importado arriba
+try:
+    img_plant = Image.open("logo_plantainvitro.png")
+    col3.image(img_plant, width=80)
+except FileNotFoundError:
+    st.warning("Logo 'plantainvitro' no encontrado.")
 st.markdown("---")
 
 # --- Sección Registrar Lote ---
