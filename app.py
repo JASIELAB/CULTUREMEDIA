@@ -6,6 +6,14 @@ from datetime import date
 import os
 from PIL import Image, ImageDraw, ImageFont
 
+# --- Helpers ---
+def to_excel_bytes(df: pd.DataFrame) -> bytes:
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
+    buf.seek(0)
+    return buf.getvalue()
+
 # --- Configuración de página y estilos ---
 st.set_page_config(page_title="Medios de Cultivo InVitro", layout="wide")
 PRIMARY_COLOR = "#D32F2F"
@@ -27,15 +35,13 @@ REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 # --- Carga inicial de datos ---
 inv_cols = ["Código","Año","Receta","Solución","Semana","Día","Preparación","Frascos","pH_Ajustado","pH_Final","CE_Final","Fecha"]
 if os.path.exists(INV_FILE):
-    inv_df = pd.read_csv(INV_FILE)
-    inv_df = inv_df.reindex(columns=inv_cols)
+    inv_df = pd.read_csv(INV_FILE).reindex(columns=inv_cols)
 else:
     inv_df = pd.DataFrame(columns=inv_cols)
 
 sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
 if os.path.exists(SOL_FILE):
-    sol_df = pd.read_csv(SOL_FILE)
-    sol_df = sol_df.reindex(columns=sol_cols)
+    sol_df = pd.read_csv(SOL_FILE).reindex(columns=sol_cols)
 else:
     sol_df = pd.DataFrame(columns=sol_cols)
 
@@ -82,7 +88,8 @@ choice = st.sidebar.radio("Selecciona una sección:", [
     "Historial",
     "Soluciones Stock",
     "Recetas de Medios",
-    "Imprimir Etiquetas"
+    "Imprimir Etiquetas",
+    "Administrar Sistema"
 ])
 
 # --- Cabecera ---
@@ -170,10 +177,18 @@ elif choice == "Imprimir Etiquetas":
     if st.button("Generar PDF etiquetas"):
         st.warning("Función PDF no implementada aún.")
 
-else:
-    st.write("Sección no implementada.")
+elif choice == "Administrar Sistema":
+    st.subheader("⚙️ Administrar Sistema")
+    if st.button("Limpiar inventario"): 
+        inv_df.drop(inv_df.index, inplace=True)
+        inv_df.to_csv(INV_FILE, index=False)
+        st.success("Inventario limpiado.")
+    if st.button("Limpiar soluciones"): 
+        sol_df.drop(sol_df.index, inplace=True)
+        sol_df.to_csv(SOL_FILE, index=False)
+        st.success("Soluciones limpiadas.")
 
-# --- Botón Descarga Inventario y Soluciones ---
+# --- Descargas Excel en sidebar ---
 st.sidebar.markdown("---")
 st.sidebar.download_button("📥 Descargar Inventario Excel", to_excel_bytes(inv_df), file_name="inventario.xlsx")
 st.sidebar.download_button("📥 Descargar Soluciones Excel", to_excel_bytes(sol_df), file_name="soluciones.xlsx")
