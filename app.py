@@ -83,7 +83,7 @@ with st.sidebar:
     st.title("🗭 Menú")
     choice = st.radio("Selecciona sección:", [
         "Registrar Lote","Consultar Stock","Inventario","Historial",
-        "Soluciones Stock","Recetas","Baja de Inventario","Imprimir Etiquetas"
+        "Soluciones Stock","Recetas","Incubación","Bajas Inventario","Imprimir Etiquetas"
     ])
 
 # --- Cabecera ---
@@ -93,7 +93,6 @@ col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo 
 st.markdown("---")
 
 # --- Secciones ---
-
 def section_registrar_lote():
     st.subheader("📋 Registrar Nuevo Lote")
     año = st.text_input("Año (ej. 2025)")
@@ -113,14 +112,13 @@ def section_registrar_lote():
         inv_df.to_csv(INV_FILE, index=False)
         st.success("Lote registrado exitosamente.")
 
-
 def section_consultar_stock():
     st.subheader("📦 Stock Actual")
     st.dataframe(inv_df)
-    st.write("---")
-    st.subheader("🔬 Inventario Soluciones Stock")
-    st.dataframe(sol_df)
     st.download_button("⬇️ Descargar Stock Excel", data=to_excel_bytes(inv_df), file_name="stock_actual.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    st.markdown("---")
+    st.subheader("📋 Inventario Soluciones Stock")
+    st.dataframe(sol_df)
 
 
 def section_inventario():
@@ -155,6 +153,9 @@ def section_soluciones_stock():
         sol_df.loc[len(sol_df)] = [fdate.isoformat(), qty, code_s, who, regulador, obs2]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
+    st.markdown("---")
+    st.subheader("📋 Lista de soluciones stock")
+    st.dataframe(sol_df)
 
 
 def section_recetas():
@@ -166,58 +167,26 @@ def section_recetas():
     st.dataframe(recipes[sel])
 
 
-def section_baja_inventario():
-    st.subheader("⚠️ Baja de Inventario")
-    opt = st.radio("Ruta de baja:", ["Consumo","Merma"])
-    lote = st.selectbox("Lote:", inv_df['Código'].tolist())
-    fecha_salida = st.date_input("Fecha de salida")
-    variedad = st.text_input("Variedad")
-    cantidad = st.number_input("Cantidad de frascos", min_value=1, max_value=inv_df.loc[inv_df['Código']==lote,'Frascos'].iloc[0])
-    if st.button("Aplicar baja"):
-        idx = inv_df.index[inv_df['Código']==lote][0]
-        inv_df.at[idx,'Frascos'] -= cantidad
-        inv_df.to_csv(INV_FILE, index=False)
-        st.success(f"Baja aplicada por {opt}: {cantidad} frascos de {variedad}.")
-
-
-def section_imprimir_etiquetas():
-    st.subheader("🖨️ Imprimir Etiquetas")
+def section_incubacion():
+    st.subheader("🕒 Días de Incubación")
     if inv_df.empty:
         st.info("No hay lotes registrados.")
         return
-    cod_base = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
-    copies = st.number_input("Número de etiquetas a generar", min_value=1, value=1)
-    if st.button("Generar PDF de etiquetas"):
-        row = inv_df.loc[inv_df['Código']==cod_base].iloc[0]
-        images = []
-        for i in range(1, copies+1):
-            cod_i = f"{cod_base}-{i}"
-            info = [
-                f"Código: {cod_i}",
-                f"Año: {row['Año']}",
-                f"Receta: {row['Receta']}",
-                f"Frascos: {row['Frascos']}",
-                f"pH ajustado: {row['pH_Ajustado']}",
-                f"pH final: {row['pH_Final']}",
-                f"CE: {row['CE_Final']}"
-            ]
-            qr_bytes = make_qr("\n".join(info))
-            label_img = make_label(info, qr_bytes)
-            images.append(label_img)
-        pdf_buf = BytesIO()
-        images[0].save(pdf_buf, format='PDF', save_all=True, append_images=images[1:])
-        pdf_buf.seek(0)
-        st.download_button("⬇️ Descargar etiquetas PDF", data=pdf_buf, file_name=f"etiquetas_{cod_base}.pdf", mime="application/pdf")
+    today = date.today()
+    for _, row in inv_df.iterrows():
+        fecha = date.fromisoformat(row['Fecha'])
+        dias = (today - fecha).days
+        if dias > 30:
+            color = 'red'
+        elif dias < 7:
+            color = 'yellow'
+        else:
+            color = 'green'
+        st.markdown(f"<div style='background-color:{color};padding:5px;border-radius:5px;margin-bottom:2px;'>"
+                    f"<b>{row['Código']}</b> – {dias} días</div>", unsafe_allow_html=True)
 
-# --- Dispatcher ---
-sections = {
-    "Registrar Lote": section_registrar_lote,
-    "Consultar Stock": section_consultar_stock,
-    "Inventario": section_inventario,
-    "Historial": section_historial,
-    "Soluciones Stock": section_soluciones_stock,
-    "Recetas": section_recetas,
-    "Baja de Inventario": section_baja_inventario,
-    "Imprimir Etiquetas": section_imprimir_etiquetas
-}
-sections.get(choice, lambda: None)()
+
+def section_bajas():
+    st.subheader("⚠️ Dar de baja Inventarios")
+    tipo = st.radio("Tipo de baja:", ["Medios","Soluciones"])...
+}]}
