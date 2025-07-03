@@ -30,22 +30,27 @@ def make_qr(text: str) -> BytesIO:
 
 
 def make_label(info_lines, qr_buf, size=(250, 120)):
+    # Crear etiqueta con fondo blanco
     w, h = size
     img = Image.new("RGB", (w, h), "white")
     draw = ImageDraw.Draw(img)
+    # Fuente más legible: DejaVu Sans Bold tamaño 16
     try:
-        font = ImageFont.truetype("arial.ttf", 12)
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", 16)
     except IOError:
         font = ImageFont.load_default()
+    # Dibujar líneas de texto
     y = 5
     for line in info_lines:
         draw.text((5, y), line, fill="black", font=font)
+        # Calcular altura de la línea
         try:
             bbox = draw.textbbox((5, y), line, font=font)
             text_height = bbox[3] - bbox[1]
         except AttributeError:
             _, text_height = font.getsize(line)
-        y += text_height + 2
+        y += text_height + 4
+    # Generar y pegar código QR
     qr_img = Image.open(qr_buf).resize((80, 80))
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
@@ -96,7 +101,7 @@ for idx, (label, icon) in enumerate(menu):
 choice = st.session_state.choice
 st.markdown("---")
 
-# --- Sections ---
+# --- Secciones ---
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     año = st.number_input("Año", 2000, 2100, value=date.today().year)
@@ -212,13 +217,11 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascos: {r['Frascos']}"
+                f"Frascos: {r['Frascros']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
-            # Mostrar etiqueta en pantalla
             st.image(lbl)
-            # Generar PDF y ofrecer descarga
             pdf_buf = BytesIO()
             lbl_rgb = lbl.convert('RGB')
             lbl_rgb.save(pdf_buf, format='PDF')
