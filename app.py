@@ -60,7 +60,6 @@ def make_qr(text: str) -> bytes:
     buf.seek(0)
     return buf.getvalue()
 
-
 def to_excel_bytes(df: pd.DataFrame) -> bytes:
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine='openpyxl') as writer:
@@ -86,7 +85,6 @@ col1, col2 = st.columns([1, 8])
 col1.image("logo_blackberry.png", width=60)
 col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
 st.markdown("---")
-("---")
 
 # --- Sección Registrar Lote ---
 if choice == "Registrar Lote":
@@ -170,7 +168,6 @@ elif choice == "Soluciones Stock":
         sol_df.loc[len(sol_df)] = [fdate.isoformat(), qty, code_s, who, regulador, obs2]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
-        # Mostrar etiqueta con los datos
         st.markdown(
             f"""
             **Código:** {code_s}  
@@ -180,10 +177,15 @@ elif choice == "Soluciones Stock":
             **Regulador:** {regulador}
             """
         )
-        # Generar y mostrar QR
-        qr2 = make_qr("
-".join(info2))
-        st.image(qr2, width=200)(qr2, width=200)
+        info2 = [
+            f"Código: {code_s}",
+            f"Fecha: {fdate.isoformat()}",
+            f"Cantidad: {qty}",
+            f"Responsable: {who}",
+            f"Regulador: {regulador}"
+        ]
+        qr2 = make_qr("\n".join(info2))
+        st.image(qr2, width=200)
         st.download_button("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")
     st.markdown("---")
     st.subheader("📋 Registro de soluciones stock")
@@ -199,7 +201,8 @@ elif choice == "Soluciones Stock":
         file_name="soluciones.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-# --- Sección Recetas ---# --- Sección Recetas ---
+
+# --- Sección Recetas ---
 elif choice == "Recetas":
     st.subheader("📖 Recetas de Medios")
     if not recipes:
