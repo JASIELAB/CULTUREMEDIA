@@ -9,17 +9,16 @@ import os
 # --- Page Config ---
 st.set_page_config(page_title="Medios Cultivo", layout="wide")
 
-# --- Logo ---
+# --- Logo en esquina superior izquierda ---
 logo_path = "plablue.png"
 if os.path.isfile(logo_path):
     try:
         logo = Image.open(logo_path)
-        # Mostrar logo en la barra lateral
-        st.sidebar.image(logo, width=120)
+        st.image(logo, width=120)
     except Exception as e:
-        st.sidebar.warning(f"Error al cargar el logo: {e}")
+        st.warning(f"Error al cargar el logo: {e}")
 else:
-    st.sidebar.warning(f"Logo '{logo_path}' no encontrado en el directorio de la aplicación.")
+    st.warning(f"Logo '{logo_path}' no encontrado en el directorio de la aplicación.")
 
 # --- Helpers ---
 def make_qr(text: str) -> BytesIO:
@@ -141,7 +140,7 @@ elif choice == "Baja Inventario":
     fecha = st.date_input("Fecha de salida")
     variedad = st.text_input("Variedad")
     if st.button("Aplicar baja"):
-        if sel in inv_df['Código'].values:
+        if sel in inv_df['Código']:
             inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
             inv_df.to_csv(INV_FILE, index=False)
         else:
