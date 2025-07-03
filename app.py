@@ -39,10 +39,16 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
         font = ImageFont.load_default()
     y = 5
     for line in info_lines:
-        # Draw text line by line
         draw.text((5, y), line, fill="black", font=font)
-        # Calcular altura de texto para espaciar correctamente
-        _, text_height = font.getsize(line)
+        # Calcular altura de texto usando textbbox o getsize como fallback
+        try:
+            bbox = draw.textbbox((5, y), line, font=font)
+            text_height = bbox[3] - bbox[1]
+        except AttributeError:
+            try:
+                _, text_height = font.getsize(line)
+            except Exception:
+                text_height = font.getmetrics()[1]
         y += text_height + 2
     qr_img = Image.open(qr_buf).resize((80, 80))
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
