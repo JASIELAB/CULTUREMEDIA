@@ -57,19 +57,16 @@ def make_qr(text: str) -> bytes:
     return buf.getvalue()
 
 def make_label(info: list, qr_bytes: bytes) -> Image.Image:
-    # Etiqueta tamaño aproximado 400x130 px
     label = Image.new("RGB", (400, 130), "white")
     draw = ImageDraw.Draw(label)
     try:
         font = ImageFont.truetype("arial.ttf", 14)
     except:
         font = ImageFont.load_default()
-    # Dibujar texto a la izquierda
     y = 10
     for line in info:
         draw.text((10, y), line, fill="black", font=font)
         y += 18
-    # Pegar QR a la derecha
     qr_img = Image.open(BytesIO(qr_bytes)).resize((80, 80))
     label.paste(qr_img, (310, 10))
     return label
@@ -86,18 +83,16 @@ with st.sidebar:
     st.title("🗭 Menú")
     choice = st.radio("Selecciona sección:", [
         "Registrar Lote","Consultar Stock","Inventario","Historial",
-        "Soluciones Stock","Recetas","Bajas Inventario","Imprimir Etiquetas"
+        "Soluciones Stock","Recetas","Bajas Inventario","Imprimir Etiquetas","Administrar Sistema"
     ])
 
 # --- Cabecera ---
 col1, col2 = st.columns([1, 8])
 col1.image("logo_blackberry.png", width=60)
 col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
-
 st.markdown("---")
 
 # --- Secciones ---
-
 def section_registrar_lote():
     st.subheader("📋 Registrar Nuevo Lote")
     año = st.text_input("Año (ej. 2025)")
@@ -117,18 +112,15 @@ def section_registrar_lote():
         inv_df.to_csv(INV_FILE, index=False)
         st.success("Lote registrado exitosamente.")
 
-
 def section_consultar_stock():
     st.subheader("📦 Stock Actual")
     st.dataframe(inv_df)
     st.download_button("⬇️ Descargar Stock Excel", data=to_excel_bytes(inv_df), file_name="stock_actual.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
 def section_inventario():
     st.subheader("📊 Inventario Completo")
     st.dataframe(inv_df)
     st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario_completo.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 def section_historial():
     st.subheader("📚 Historial")
@@ -142,7 +134,6 @@ def section_historial():
     filt = df[(df['Fecha'].dt.date >= start) & (df['Fecha'].dt.date <= end)]
     st.dataframe(filt)
     st.download_button("⬇️ Descargar Historial Excel", data=to_excel_bytes(filt), file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 def section_soluciones_stock():
     st.subheader("🧪 Registro de soluciones stock")
@@ -161,7 +152,6 @@ def section_soluciones_stock():
     st.dataframe(sol_df)
     st.download_button("⬇️ Descargar Soluciones Excel", data=to_excel_bytes(sol_df), file_name="soluciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
 def section_recetas():
     st.subheader("📖 Recetas de Medios")
     if not recipes:
@@ -169,7 +159,6 @@ def section_recetas():
         return
     sel = st.selectbox("Selecciona medio:", list(recipes.keys()))
     st.dataframe(recipes[sel])
-
 
 def section_bajas():
     st.subheader("⚠️ Dar de baja Inventarios")
@@ -190,7 +179,6 @@ def section_bajas():
             sol_df.drop(sol_df[sol_df['Código_Solución']==sol].index, inplace=True)
             sol_df.to_csv(SOL_FILE, index=False)
             st.success("Solución eliminada.")
-
 
 def section_imprimir_etiquetas():
     st.subheader("🖨️ Imprimir Etiquetas")
@@ -216,11 +204,20 @@ def section_imprimir_etiquetas():
             qr_bytes = make_qr("\n".join(info))
             label_img = make_label(info, qr_bytes)
             images.append(label_img)
-        # Generar PDF
         pdf_buf = BytesIO()
         images[0].save(pdf_buf, format='PDF', save_all=True, append_images=images[1:])
         pdf_buf.seek(0)
         st.download_button("⬇️ Descargar etiquetas PDF", data=pdf_buf, file_name=f"etiquetas_{cod_base}.pdf", mime="application/pdf")
+
+def section_admin():
+    st.subheader("⚙️ Administración del Sistema")
+    if st.button("🧹 Borrar inventario y soluciones"):
+        for f in [INV_FILE, SOL_FILE]:
+            try: os.remove(f)
+            except: pass
+        inv_df.drop(inv_df.index, inplace=True)
+        sol_df.drop(sol_df.index, inplace=True)
+        st.success("Datos eliminados. Reinicia la app.")
 
 # --- Dispatcher ---
 sections = {
@@ -231,6 +228,7 @@ sections = {
     "Soluciones Stock": section_soluciones_stock,
     "Recetas": section_recetas,
     "Bajas Inventario": section_bajas,
-    "Imprimir Etiquetas": section_imprimir_etiquetas
+    "Imprimir Etiquetas": section_imprimir_etiquetas,
+    "Administrar Sistema": section_admin
 }
 sections.get(choice, lambda: None)()
