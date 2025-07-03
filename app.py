@@ -77,9 +77,9 @@ def make_label(info: list, qr_bytes: bytes) -> Image.Image:
 # --- Menú lateral ---
 st.sidebar.title("💬 Menú")
 choice = st.sidebar.radio("Selecciona sección:", [
-    "Registrar Lote", "Consultar Stock", "Inventario Completo",
-    "Incubación", "Soluciones Stock", "Recetas de Medios",
-    "Imprimir Etiquetas"
+    "Registrar Lote", "Consultar Stock", "Inventario Completo", 
+    "Incubación", "Soluciones Stock", "Recetas de Medios", 
+    "Bajas Inventario","Imprimir Etiquetas"
 ])
 
 st.title("Control de Medios de Cultivo InVitro")
@@ -101,13 +101,14 @@ if choice == "Registrar Lote":
     if st.button("Registrar lote"):
         code = f"{str(año)[-2:]}{receta}{solucion}{semana}{dia}{prep}"
         fecha = date.today().isoformat()
-        row = [code,año,receta,solucion,semana,dia,prep,frascos,ph_aj,ph_fin,ce,fecha]
-        inv_df.loc[len(inv_df)] = row
+        inv_df.loc[len(inv_df)] = [code,año,receta,solucion,semana,dia,prep,frascos,ph_aj,ph_fin,ce,fecha]
         inv_df.to_csv(INV_FILE, index=False)
         st.success("✅ Lote registrado")
-        info = [f"Código: {code}", f"Año: {año}", f"Receta: {receta}", f"Solución: {solucion}",
-                f"Semana: {semana}", f"Día: {dia} Prep {prep}", f"Frascos: {frascos}",
-                f"pH ajustado: {ph_aj}", f"pH final: {ph_fin}", f"CE final: {ce}"]
+        info = [
+            f"Código: {code}", f"Año: {año}", f"Receta: {receta}", f"Solución: {solucion}",
+            f"Semana: {semana}", f"Día: {dia} Prep {prep}", f"Frascos: {frascos}",
+            f"pH ajustado: {ph_aj}", f"pH final: {ph_fin}", f"CE final: {ce}"
+        ]
         qr = make_qr(code)
         label = make_label(info, qr)
         buf = BytesIO()
@@ -132,10 +133,11 @@ elif choice == "Incubación":
     df2['Fecha_reg'] = pd.to_datetime(df2['Fecha'])
     df2['Días'] = (pd.Timestamp.today() - df2['Fecha_reg']).dt.days
     def color_row(days):
-        if days>30: return f'background-color: #FFCDD2'
-        if days<7: return f'background-color: #C8E6C9'
-        return f'background-color: #FFF9C4'
-    st.dataframe(df2.style.apply(lambda x: [color_row(d) for d in x['Días']], axis=1))
+        if days>30: return 'background-color: #FFCDD2'
+        if days<7: return 'background-color: #C8E6C9'
+        return 'background-color: #FFF9C4'
+    styled = df2.style.apply(lambda row: [color_row(row['Días']) for _ in row], axis=1)
+    st.dataframe(styled)
 
 # --- Soluciones Stock ---
 elif choice == "Soluciones Stock":
@@ -151,6 +153,26 @@ elif choice == "Soluciones Stock":
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
     st.table(sol_df)
+
+# --- Bajas Inventario ---
+elif choice == "Bajas Inventario":
+    st.subheader("⚠️ Bajas de inventario")
+    type_ = st.radio("Tipo de baja:", ["Frascos Consumo/Merma", "Eliminar Lote"])
+    if type_ == "Frascos Consumo/Merma":
+        lote_sel = st.selectbox("Seleccionar lote:", inv_df['Código'])
+        num = st.number_input("# Frascos a dar de baja", min_value=1, max_value=inv_df.loc[inv_df['Código']==lote_sel,'Frascos'].iloc[0])
+        motivo = st.text_area("Motivo consumo/merma")
+        if st.button("Aplicar baja medios"):
+            idx = inv_df[inv_df['Código']==lote_sel].index[0]
+            inv_df.at[idx,'Frascos'] = inv_df.at[idx,'Frascos'] - num
+            inv_df.to_csv(INV_FILE, index=False)
+            st.success("Frascos descontados.")
+    else:
+        lote_del = st.multiselect("Eliminar lote(s):", inv_df['Código'])
+        if st.button("Eliminar lote(s)"):
+            inv_df.drop(inv_df[inv_df['Código'].isin(lote_del)].index, inplace=True)
+            inv_df.to_csv(INV_FILE, index=False)
+            st.success("Lote(s) eliminado(s)")
 
 # --- Recetas de Medios ---
 elif choice == "Recetas de Medios":
