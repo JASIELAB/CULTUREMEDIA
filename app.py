@@ -30,27 +30,22 @@ def make_qr(text: str) -> BytesIO:
 
 
 def make_label(info_lines, qr_buf, size=(250, 120)):
-    # Crear etiqueta con fondo blanco
     w, h = size
     img = Image.new("RGB", (w, h), "white")
     draw = ImageDraw.Draw(img)
-    # Fuente más legible: DejaVu Sans Bold tamaño 16
     try:
         font = ImageFont.truetype("DejaVuSans-Bold.ttf", 16)
     except IOError:
         font = ImageFont.load_default()
-    # Dibujar líneas de texto
     y = 5
     for line in info_lines:
         draw.text((5, y), line, fill="black", font=font)
-        # Calcular altura de la línea
         try:
             bbox = draw.textbbox((5, y), line, font=font)
             text_height = bbox[3] - bbox[1]
         except AttributeError:
             _, text_height = font.getsize(line)
         y += text_height + 4
-    # Generar y pegar código QR
     qr_img = Image.open(qr_buf).resize((80, 80))
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
@@ -60,9 +55,9 @@ INV_FILE = "inventario_medios.csv"
 SOL_FILE = "soluciones_stock.csv"
 REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
-inv_cols = ["Código","Año","Receta","Solución","Semana","Día","Preparación",
-            "Frascos","pH_Ajustado","pH_Final","CE_Final","Fecha"]
-sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
+inv_cols = ["Código", "Año", "Receta", "Solución", "Semana", "Día", "Preparación", 
+            "Frascos", "pH_Ajustado", "pH_Final", "CE_Final", "Fecha"]
+sol_cols = ["Fecha", "Cantidad", "Código_Solución", "Responsable", "Regulador", "Observaciones"]
 
 inv_df = pd.read_csv(INV_FILE) if os.path.exists(INV_FILE) else pd.DataFrame(columns=inv_cols)
 sol_df = pd.read_csv(SOL_FILE) if os.path.exists(SOL_FILE) else pd.DataFrame(columns=sol_cols)
@@ -217,7 +212,7 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascos: {r['Frascros']}"
+                f"Frascos: {r['Frascos']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
