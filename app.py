@@ -5,6 +5,7 @@ from io import BytesIO
 from datetime import date, datetime
 from PIL import Image, ImageDraw, ImageFont
 import os
+import streamlit.components.v1 as components
 
 # --- Page Config ---
 st.set_page_config(page_title="Medios Cultivo", layout="wide")
@@ -40,15 +41,11 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     y = 5
     for line in info_lines:
         draw.text((5, y), line, fill="black", font=font)
-        # Calcular altura de texto usando textbbox o getsize como fallback
         try:
             bbox = draw.textbbox((5, y), line, font=font)
             text_height = bbox[3] - bbox[1]
         except AttributeError:
-            try:
-                _, text_height = font.getsize(line)
-            except Exception:
-                text_height = font.getmetrics()[1]
+            _, text_height = font.getsize(line)
         y += text_height + 2
     qr_img = Image.open(qr_buf).resize((80, 80))
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
@@ -222,3 +219,8 @@ elif choice == "Imprimir Etiquetas":
             lbl = make_label(info, buf)
             st.image(lbl)
         st.info("Usa clic derecho para guardar o imprimir PDF.")
+        # Botón para imprimir directamente desde el navegador
+        components.html(
+            '<button onclick="window.print()" style="font-size:16px; padding:8px 16px;">Imprimir Página</button>',
+            height=60
+        )
