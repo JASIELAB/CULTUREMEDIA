@@ -202,4 +202,9 @@ elif section == "Soluciones Stock":
     f"Cantidad: {cant}
 "
     f"Responsable: {resp}"
+)}
+"
+    f"Cantidad: {cant}
+"
+    f"Responsable: {resp}"
 )
