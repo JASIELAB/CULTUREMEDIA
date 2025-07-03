@@ -164,8 +164,12 @@ def section_soluciones_stock():
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
         info2 = [
-            f"Código: {code_s}", f"Fecha: {fdate.isoformat()}" +,
-            f"Cantidad: {qty}" , f"Responsable: {who}" , f"Regulador: {regulador}" , f"Obs: {obs2}"
+            f"Código: {code_s}",
+            f"Fecha: {fdate.isoformat()}",
+            f"Cantidad: {qty}",
+            f"Responsable: {who}",
+            f"Regulador: {regulador}",
+            f"Obs: {obs2}"
         ]
         qr2 = make_qr("\n".join(info2))
         label2 = make_label(info2, qr2)
