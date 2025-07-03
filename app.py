@@ -101,7 +101,7 @@ col1.image("logo_blackberry.png", width=60)
 col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- Lógica de secciones ---
+# --- Secciones ---
 if choice == "Registrar Lote":
     st.subheader("📝 Registrar Lote")
     año = st.text_input("Año (ej. 2025)")
@@ -110,7 +110,7 @@ if choice == "Registrar Lote":
     semana = st.number_input("Semana", 1, 52)
     dia = st.number_input("Día", 1, 7)
     prep = st.text_input("Número de preparación")
-    frascos = st.number_input("Cantidad de frascos", 1, 500)
+    frascos = st.number_input("Cantidad de frascos", min_value=1, max_value=999, step=1)
     ph_aj = st.number_input("pH ajustado", format="%.1f")
     ph_fin = st.number_input("pH final", format="%.1f")
     ce = st.number_input("CE final", format="%.2f")
@@ -129,15 +129,17 @@ if choice == "Registrar Lote":
         st.download_button("📥 Descargar etiqueta", data=buf.getvalue(), file_name=f"etq_{code}.png")
 
 elif choice == "Consultar Stock":
-    st.subheader("🔍 Consultar Stock")
+    st.subheader("🔍 Stock Actual de Medios")
     st.dataframe(inv_df)
+    st.subheader("🧪 Inventario Soluciones Stock")
+    st.dataframe(sol_df)
 
 elif choice == "Inventario":
     st.subheader("📋 Inventario Actual")
     st.dataframe(inv_df)
 
 elif choice == "Historial":
-    st.subheader("📜 Historial de Lotes")
+    st.subheader("📜 Historial de Registros")
     st.dataframe(inv_df)
 
 elif choice == "Soluciones Stock":
@@ -152,13 +154,6 @@ elif choice == "Soluciones Stock":
         sol_df.loc[len(sol_df)] = [fecha.isoformat(),cantidad,cod_s,responsable,regulador,obs]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
-        info = [f"Código: {cod_s}", f"Fecha: {fecha.isoformat()}", f"Cantidad: {cantidad}",
-                f"Responsable: {responsable}", f"Regulador: {regulador}"]
-        qr2 = make_qr(cod_s)
-        label2 = make_label(info, qr2)
-        st.image(label2)
-        buf2 = BytesIO(); label2.save(buf2, format="PNG"); buf2.seek(0)
-        st.download_button("📥 Descargar etiqueta Stock", data=buf2.getvalue(), file_name=f"etq_stock_{cod_s}.png")
 
 elif choice == "Recetas de Medios":
     st.subheader("📖 Recetas de Medios de Cultivo")
@@ -168,10 +163,7 @@ elif choice == "Recetas de Medios":
 
 elif choice == "Imprimir Etiquetas":
     st.subheader("🖨️ Imprimir Etiquetas")
-    codes = inv_df["Código"].tolist()
-    sel = st.multiselect("Selecciona lotes", codes)
-    if st.button("Generar PDF etiquetas"):
-        st.warning("Pendiente implementar PDF.")
+    st.info("Pendiente implementar PDF de etiquetas múltiple.")
 
 elif choice == "Administrar Sistema":
     st.subheader("⚙️ Administrar Sistema")
