@@ -50,7 +50,6 @@ if os.path.exists(REC_FILE):
             recipes[sheet] = sub
 
 # --- Funciones auxiliares ---
-
 def make_qr(text: str) -> bytes:
     img = qrcode.make(text)
     buf = BytesIO()
@@ -60,7 +59,7 @@ def make_qr(text: str) -> bytes:
 
 
 def make_label(info: list, qr_bytes: bytes) -> bytes:
-    # Crear etiqueta 300x150 px con texto y QR
+    # Crear etiqueta 300x150 px con texto y QR de 80x80
     label = Image.new("RGB", (300, 150), "white")
     draw = ImageDraw.Draw(label)
     font = ImageFont.load_default()
@@ -103,7 +102,7 @@ col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo 
 st.markdown("---")
 
 # --- Secciones ---
-# Registrar Lote
+
 def section_registrar_lote():
     st.subheader("📋 Registrar Nuevo Lote")
     año = st.text_input("Año (ej. 2025)")
@@ -131,21 +130,18 @@ def section_registrar_lote():
         st.image(label_bytes, width=300)
         st.download_button("⬇️ Descargar etiqueta PNG", data=label_bytes, file_name=f"et_{cod}.png", mime="image/png")
 
-# Consultar Stock
 
 def section_consultar_stock():
     st.subheader("📦 Stock Actual")
     st.dataframe(inv_df)
     st.download_button("⬇️ Descargar Stock Excel", data=to_excel_bytes(inv_df), file_name="stock_actual.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Inventario completo
 
 def section_inventario():
     st.subheader("📊 Inventario Completo")
     st.dataframe(inv_df)
     st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario_completo.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Historial
 
 def section_historial():
     st.subheader("📚 Historial")
@@ -161,7 +157,6 @@ def section_historial():
         st.dataframe(filt)
         st.download_button("⬇️ Descargar Historial Excel", data=to_excel_bytes(filt), file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Soluciones Stock
 
 def section_soluciones_stock():
     st.subheader("🧪 Registro de soluciones stock")
@@ -188,7 +183,6 @@ def section_soluciones_stock():
     st.dataframe(sol_df)
     st.download_button("⬇️ Descargar Soluciones Excel", data=to_excel_bytes(sol_df), file_name="soluciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Recetas
 
 def section_recetas():
     st.subheader("📖 Recetas de Medios")
@@ -203,7 +197,6 @@ def section_recetas():
         buf.seek(0)
         st.download_button("⬇️ Descargar Receta Excel", data=buf.getvalue(), file_name=f"receta_{sel}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Bajas Inventario
 
 def section_bajas():
     st.subheader("⚠️ Dar de baja Inventarios")
@@ -211,4 +204,36 @@ def section_bajas():
     if tipo == "Medios":
         lote = st.selectbox("Lote:", inv_df['Código'].tolist())
         baja_ct = st.number_input("Frascos a dar de baja:", min_value=1)
-        mot = st.text_input("Motivo consum
+        motivo = st.text_input("Motivo consum/merma")
+        if st.button("Aplicar baja medios"):
+            idx = inv_df.index[inv_df['Código'] == lote]
+            if not idx.empty:
+                i = idx[0]
+                if baja_ct <= inv_df.at[i, 'Frascos']:
+                    inv_df.at[i, 'Frascos'] -= baja_ct
+                    inv_df.to_csv(INV_FILE, index=False)
+                    st.success("Frascos dados de baja.")
+                else:
+                    st.error("Número mayor al stock disponible.")
+    else:
+        sol = st.selectbox("Código solución:", sol_df['Código_Solución'].dropna().tolist())
+        if st.button("Eliminar solución"):
+            sol_df.drop(sol_df[sol_df['Código_Solución'] == sol].index, inplace=True)
+            sol_df.to_csv(SOL_FILE, index=False)
+            st.success("Solución eliminada.")
+
+# --- Ejecutar sección seleccionada ---
+if choice == "Registrar Lote":
+    section_registrar_lote()
+elif choice == "Consultar Stock":
+    section_consultar_stock()
+elif choice == "Inventario":
+    section_inventario()
+elif choice == "Historial":
+    section_historial()
+elif choice == "Soluciones Stock":
+    section_soluciones_stock()
+elif choice == "Recetas":
+    section_recetas()
+elif choice == "Bajas Inventario":
+    section_bajas()
