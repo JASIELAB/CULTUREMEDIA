@@ -57,15 +57,21 @@ def make_qr(text: str) -> bytes:
     return buf.getvalue()
 
 def make_label(info: list, qr_bytes: bytes) -> Image.Image:
-    label = Image.new("RGB", (300, 150), "white")
+    # Etiqueta tamaño aproximado 400x130 px
+    label = Image.new("RGB", (400, 130), "white")
     draw = ImageDraw.Draw(label)
-    font = ImageFont.load_default()
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+    except:
+        font = ImageFont.load_default()
+    # Dibujar texto a la izquierda
     y = 10
     for line in info:
         draw.text((10, y), line, fill="black", font=font)
         y += 18
-    qr_img = Image.open(BytesIO(qr_bytes)).resize((60, 60))
-    label.paste(qr_img, (220, 10))
+    # Pegar QR a la derecha
+    qr_img = Image.open(BytesIO(qr_bytes)).resize((80, 80))
+    label.paste(qr_img, (310, 10))
     return label
 
 def to_excel_bytes(df: pd.DataFrame) -> bytes:
@@ -87,6 +93,7 @@ with st.sidebar:
 col1, col2 = st.columns([1, 8])
 col1.image("logo_blackberry.png", width=60)
 col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
+
 st.markdown("---")
 
 # --- Secciones ---
@@ -104,21 +111,24 @@ def section_registrar_lote():
     ph_fin = st.number_input("pH final", value=5.8, format="%.2f")
     ce = st.number_input("CE final (mS/cm)", value=1.0, format="%.2f")
     if st.button("Registrar lote"):
-        cod = f"{año}-{receta}-{solucion}-{semana}-{dia}-{prep}".replace(' ','')
+        cod_base = f"{año}-{receta}-{solucion}-{semana}-{dia}-{prep}".replace(' ','')
         fecha = date.today().isoformat()
-        inv_df.loc[len(inv_df)] = [cod, año, receta, solucion, semana, dia, prep, frascos, ph_aj, ph_fin, ce, fecha]
+        inv_df.loc[len(inv_df)] = [cod_base, año, receta, solucion, semana, dia, prep, frascos, ph_aj, ph_fin, ce, fecha]
         inv_df.to_csv(INV_FILE, index=False)
         st.success("Lote registrado exitosamente.")
+
 
 def section_consultar_stock():
     st.subheader("📦 Stock Actual")
     st.dataframe(inv_df)
     st.download_button("⬇️ Descargar Stock Excel", data=to_excel_bytes(inv_df), file_name="stock_actual.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+
 def section_inventario():
     st.subheader("📊 Inventario Completo")
     st.dataframe(inv_df)
-    st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario_completo.xlsx", mime="application/pdf")
+    st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario_completo.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 def section_historial():
     st.subheader("📚 Historial")
@@ -132,6 +142,7 @@ def section_historial():
     filt = df[(df['Fecha'].dt.date >= start) & (df['Fecha'].dt.date <= end)]
     st.dataframe(filt)
     st.download_button("⬇️ Descargar Historial Excel", data=to_excel_bytes(filt), file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 def section_soluciones_stock():
     st.subheader("🧪 Registro de soluciones stock")
@@ -150,6 +161,7 @@ def section_soluciones_stock():
     st.dataframe(sol_df)
     st.download_button("⬇️ Descargar Soluciones Excel", data=to_excel_bytes(sol_df), file_name="soluciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+
 def section_recetas():
     st.subheader("📖 Recetas de Medios")
     if not recipes:
@@ -157,6 +169,7 @@ def section_recetas():
         return
     sel = st.selectbox("Selecciona medio:", list(recipes.keys()))
     st.dataframe(recipes[sel])
+
 
 def section_bajas():
     st.subheader("⚠️ Dar de baja Inventarios")
@@ -178,33 +191,38 @@ def section_bajas():
             sol_df.to_csv(SOL_FILE, index=False)
             st.success("Solución eliminada.")
 
+
 def section_imprimir_etiquetas():
     st.subheader("🖨️ Imprimir Etiquetas")
     if inv_df.empty:
         st.info("No hay lotes registrados.")
         return
-    cod = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
+    cod_base = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
     copies = st.number_input("Número de etiquetas a generar", min_value=1, value=1)
     if st.button("Generar PDF de etiquetas"):
-        row = inv_df.loc[inv_df['Código']==cod].iloc[0]
-        base_info = [
-            f"Código: {row['Código']}", f"Año: {row['Año']}", f"Receta: {row['Receta']}",
-            f"Solución: {row['Solución']}", f"Preparación: {row['Preparación']}",
-            f"Frascos: {row['Frascos']}", f"pH ajustado: {row['pH_Ajustado']}",
-            f"pH final: {row['pH_Final']}", f"CE: {row['CE_Final']}"
-        ]
+        row = inv_df.loc[inv_df['Código']==cod_base].iloc[0]
         images = []
         for i in range(1, copies+1):
-            info = base_info + [f"Etiqueta: {i}"]
+            cod_i = f"{cod_base}-{i}"
+            info = [
+                f"Código: {cod_i}",
+                f"Año: {row['Año']}",
+                f"Receta: {row['Receta']}",
+                f"Frascos: {row['Frascos']}",
+                f"pH ajustado: {row['pH_Ajustado']}",
+                f"pH final: {row['pH_Final']}",
+                f"CE: {row['CE_Final']}"
+            ]
             qr_bytes = make_qr("\n".join(info))
-            img = make_label(info, qr_bytes)
-            images.append(img)
+            label_img = make_label(info, qr_bytes)
+            images.append(label_img)
+        # Generar PDF
         pdf_buf = BytesIO()
         images[0].save(pdf_buf, format='PDF', save_all=True, append_images=images[1:])
         pdf_buf.seek(0)
-        st.download_button("⬇️ Descargar etiquetas PDF", data=pdf_buf, file_name=f"etiquetas_{cod}.pdf", mime="application/pdf")
+        st.download_button("⬇️ Descargar etiquetas PDF", data=pdf_buf, file_name=f"etiquetas_{cod_base}.pdf", mime="application/pdf")
 
-# --- Despacho de secciones ---
+# --- Dispatcher ---
 sections = {
     "Registrar Lote": section_registrar_lote,
     "Consultar Stock": section_consultar_stock,
@@ -215,5 +233,4 @@ sections = {
     "Bajas Inventario": section_bajas,
     "Imprimir Etiquetas": section_imprimir_etiquetas
 }
-
 sections.get(choice, lambda: None)()
