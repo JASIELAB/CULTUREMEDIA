@@ -9,17 +9,16 @@ import os
 # --- Page Config ---
 st.set_page_config(page_title="Medios Cultivo", layout="wide")
 
-# --- Logo ---
+# --- Logo en esquina superior izquierda ---
 logo_path = "plablue.png"
 if os.path.isfile(logo_path):
     try:
         logo = Image.open(logo_path)
-        # Mostrar logo en la barra lateral
-        st.sidebar.image(logo, width=120)
+        st.image(logo, width=120)
     except Exception as e:
-        st.sidebar.warning(f"Error al cargar el logo: {e}")
+        st.warning(f"Error al cargar el logo: {e}")
 else:
-    st.sidebar.warning(f"Logo '{logo_path}' no encontrado en el directorio de la aplicación.")
+    st.warning(f"Logo '{logo_path}' no encontrado en el directorio de la aplicación.")
 
 # --- Helpers ---
 def make_qr(text: str) -> BytesIO:
@@ -41,7 +40,9 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     y = 5
     for line in info_lines:
         draw.text((5, y), line, fill="black", font=font)
-        y += font.getsize(line)[1] + 2
+        # calcular altura de texto para espaciar
+        text_height = draw.textsize(line, font=font)[1]
+        y += text_height + 2
     qr_img = Image.open(qr_buf).resize((80, 80))
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
@@ -114,7 +115,19 @@ if choice == "Registrar Lote":
 
 elif choice == "Consultar Stock":
     st.header("📦 Consultar Stock")
-    st.dataframe(inv_df.style.set_properties(**{"background-color": "white"}), use_container_width=True)
+    st.dataframe(inv_df, use_container_width=True)
+    # Descarga de inventario
+    csv_inv = inv_df.to_csv(index=False).encode('utf-8')
+    st.download_button("Descargar Inventario (CSV)", csv_inv,
+                       file_name="inventario_medios.csv", mime="text/csv")
+    # Excel
+    buffer_inv = BytesIO()
+    with pd.ExcelWriter(buffer_inv, engine='openpyxl') as writer:
+        inv_df.to_excel(writer, index=False, sheet_name='Inventario')
+    buffer_inv.seek(0)
+    st.download_button("Descargar Inventario (Excel)", buffer_inv,
+                       file_name="inventario_medios.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 elif choice == "Inventario Completo":
     st.header("🔍 Inventario Completo")
@@ -141,7 +154,7 @@ elif choice == "Baja Inventario":
     fecha = st.date_input("Fecha de salida")
     variedad = st.text_input("Variedad")
     if st.button("Aplicar baja"):
-        if sel in inv_df['Código'].values:
+        if sel in inv_df['Código']:
             inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
             inv_df.to_csv(INV_FILE, index=False)
         else:
@@ -151,16 +164,34 @@ elif choice == "Baja Inventario":
 
 elif choice == "Soluciones Stock":
     st.header("🧪 Soluciones Stock")
-    f2 = st.date_input("Fecha")
-    cant2 = st.text_input("Cantidad")
-    code_s = st.text_input("Código Solución")
-    resp = st.text_input("Responsable")
-    reg = st.text_input("Regulador")
-    obs = st.text_area("Observaciones")
+    # Formulario de registro
+    col1, col2 = st.columns(2)
+    with col1:
+        f2 = st.date_input("Fecha")
+        cant2 = st.text_input("Cantidad")
+        code_s = st.text_input("Código Solución")
+    with col2:
+        resp = st.text_input("Responsable")
+        reg = st.text_input("Regulador")
+        obs = st.text_area("Observaciones")
     if st.button("Registrar solución"):
         sol_df.loc[len(sol_df)] = [f2.isoformat(), cant2, code_s, resp, reg, obs]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
+    # Mostrar tabla de soluciones
+    st.markdown("---")
+    st.subheader("Stock de Soluciones Registradas")
+    st.dataframe(sol_df, use_container_width=True)
+    csv_sol = sol_df.to_csv(index=False).encode('utf-8')
+    st.download_button("Descargar Soluciones (CSV)", csv_sol,
+                       file_name="soluciones_stock.csv", mime="text/csv")
+    buffer_sol = BytesIO()
+    with pd.ExcelWriter(buffer_sol, engine='openpyxl') as writer:
+        sol_df.to_excel(writer, index=False, sheet_name='Soluciones')
+    buffer_sol.seek(0)
+    st.download_button("Descargar Soluciones (Excel)", buffer_sol,
+                       file_name="soluciones_stock.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 elif choice == "Recetas de Medios":
     st.header("📖 Recetas de Medios")
