@@ -181,16 +181,9 @@ elif choice == "Soluciones Stock":
             """
         )
         # Generar y mostrar QR
-        info2 = [
-            f"Código: {code_s}",
-            f"Fecha: {fdate.isoformat()}",
-            f"Cantidad: {qty}",
-            f"Responsable: {who}",
-            f"Regulador: {regulador}"
-        ]
         qr2 = make_qr("
 ".join(info2))
-        st.image(qr2, width=200)
+        st.image(qr2, width=200)(qr2, width=200)
         st.download_button("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")
     st.markdown("---")
     st.subheader("📋 Registro de soluciones stock")
