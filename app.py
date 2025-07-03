@@ -1,74 +1,79 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-from io import BytesIO
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
-import os
-from fpdf import FPDF
+from io import BytesIO
+from datetime import datetime
 import base64
+import os
 
-# --- Paleta de colores personalizada ---
-primary_color = "#007ACC"  # azul
-accent_color = "#2ECC71"  # verde
+# --- Configuración de página y estilos ---
+st.set_page_config(page_title="Medios de Cultivo InVitro", layout="wide")
+primary_color = "#007ACC"
+accent_color = "#2ECC71"
 bg_color = "#F5F9FC"
 text_color = "#1C2833"
 
 st.markdown(f"""
 <style>
-    .main {{
-        background-color: {bg_color};
-    }}
-    .stApp {{
-        color: {text_color};
-    }}
-    div.stButton > button:first-child {{
-        background-color: {primary_color};
-        color: white;
-    }}
-    div.stDownloadButton > button:first-child {{
-        background-color: {accent_color};
-        color: white;
-    }}
-    .stRadio > div {{
-        background-color: {bg_color};
-        color: {text_color};
-    }}
+  .stApp {{background-color: {bg_color}; color: {text_color};}}
+  div.stButton>button {{background-color: {primary_color}; color: white;}}
+  div.stDownloadButton>button {{background-color: {accent_color}; color: white;}}
 </style>
 """, unsafe_allow_html=True)
 
-# --- Configuración de la página ---
-st.set_page_config(
-    page_title="Medios de Cultivo InVitro",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# --- Rutas de datos ---
-INVENTARIO_CSV = "inventario_medios.csv"
-SOLUCIONES_CSV = "soluciones_stock.csv"
+# --- Rutas de archivos ---
+INV_FILE = "inventario_medios.csv"
+SOL_FILE = "soluciones_stock.csv"
+RECETAS_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
 # --- Carga o inicialización de DataFrames ---
-if os.path.exists(INVENTARIO_CSV):
-    inventario_df = pd.read_csv(INVENTARIO_CSV)
+if os.path.exists(INV_FILE):
+    inv_df = pd.read_csv(INV_FILE, parse_dates=["Fecha"] if "Fecha" in pd.read_csv(INV_FILE, nrows=0).columns else [])
 else:
-    inventario_df = pd.DataFrame(columns=["Código","Año","Receta","Solución","Semana","Día","Preparación","Fecha_Registro"])
+    inv_df = pd.DataFrame(columns=["Código","Año","Receta","Solución","Semana","Día","Preparación","Fecha"])
 
-if os.path.exists(SOLUCIONES_CSV):
-    soluciones_df = pd.read_csv(SOLUCIONES_CSV)
+if os.path.exists(SOL_FILE):
+    sol_df = pd.read_csv(SOL_FILE, parse_dates=["Fecha"] if "Fecha" in pd.read_csv(SOL_FILE, nrows=0).columns else [])
 else:
-    soluciones_df = pd.DataFrame(columns=["Fecha","Cantidad_Pesada","Código_Solución","Responsable","Observaciones"])
+    sol_df = pd.DataFrame(columns=["Fecha","Cantidad","Código_Solución","Responsable","Observaciones"])
+
+# --- Carga de recetas desde Excel ---
+recipes = {}
+if os.path.exists(RECETAS_FILE):
+    xls = pd.ExcelFile(RECETAS_FILE)
+    for sheet in xls.sheet_names:
+        df_raw = xls.parse(sheet)
+        if df_raw.shape[0] > 9:
+            df2 = df_raw.iloc[9:,[0,1,2]].dropna(how='all')
+            df2.columns = ["Componente","Fórmula","Concentración"]
+            recipes[sheet] = df2
+
+# --- Funciones auxiliares ---
+
+def make_qr(text):
+    img = qrcode.make(text)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def download_excel(df, filename):
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet1')
+    return buf.getvalue()
 
 # --- Sidebar de navegación ---
 with st.sidebar:
     st.title("🗭 Menú")
-    menu = st.radio("Selecciona una sección:", [
+    section = st.radio("Selecciona una sección:", [
         "Registrar Lote",
         "Consultar Stock",
-        "Inventario General",
+        "Inventario",
         "Historial",
         "Soluciones Stock",
-        "Recetas de medios"
+        "Recetas"
     ])
 
 # --- Encabezado ---
@@ -76,136 +81,94 @@ col1, col2, col3 = st.columns([1,6,1])
 with col1:
     st.image("logo_blackberry.png", width=60)
 with col2:
-    st.markdown("<h1 style='text-align: center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
 with col3:
     st.empty()
+
 st.markdown("---")
 
-# --- Funciones auxiliares ---
-def generar_qr(texto):
-    qr = qrcode.make(texto)
-    buf = BytesIO()
-    qr.save(buf, format="PNG")
-    buf.seek(0)
-    return Image.open(buf)
-
-def generar_etiqueta(info_lineas, codigo, titulo="🧪 MEDIO DE CULTIVO"):
-    etiqueta = Image.new("RGB", (472,283), "white")
-    draw = ImageDraw.Draw(etiqueta)
-    try:
-        font = ImageFont.truetype("arial.ttf",16)
-    except:
-        font = ImageFont.load_default()
-    # logo
-    try:
-        logo = Image.open("logo_blackberry.png").resize((50,50))
-        etiqueta.paste(logo,(400,230))
-    except:
-        pass
-    # título
-    draw.text((10,10), titulo, font=font, fill="black")
-    # líneas de info
-    y=40
-    for ln in info_lineas:
-        draw.text((10,y), ln, font=font, fill="black")
-        y+=28
-    # QR
-    qr = generar_qr("\\n".join(info_lineas))
-    qr=qr.resize((120,120))
-    etiqueta.paste(qr,(330,20))
-    # código abajo
-    draw.text((10,250), f"Código: {codigo}", font=font, fill="black")
-    buf=BytesIO()
-    etiqueta.save(buf,format="PNG")
-    buf.seek(0)
-    return buf
-
-def generar_excel(df):
-    buf=BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False)
-    buf.seek(0)
-    return buf
-
-# --- Sección: Registrar Lote ---
-if menu=="Registrar Lote":
-    st.subheader("📋 Registrar nuevo lote")
-    anio = st.text_input("Año (ej. 2025)")
-    rec_opts = list(recetas.keys()) if 'recetas' in globals() else ["MS","½MS","B5"]
-    receta = st.selectbox("Receta", ["Selecciona"]+rec_opts)
-    sol_opts = soluciones_df["Código_Solución"].dropna().unique().tolist()
-    solucion = st.selectbox("Solución stock usada", ["Selecciona"]+sol_opts)
+# --- Sección Registrar Lote ---
+if section == "Registrar Lote":
+    st.subheader("📋 Registrar Lote")
+    año = st.text_input("Año (ej. 2025)")
+    receta = st.selectbox("Receta", ["Selecciona"] + list(recipes.keys()))
+    solucion = st.selectbox("Solución stock", ["Selecciona"] + sol_df['Código_Solución'].dropna().tolist())
     semana = st.text_input("Semana")
     dia = st.text_input("Día")
-    prep = st.text_input("Número de preparación")
+    prep = st.text_input("Preparación")
     frascos = st.number_input("Cantidad de etiquetas", min_value=1, value=1)
     if st.button("Registrar lote"):
-        codigo = f"{anio}-{receta}-{solucion}-{semana}-{dia}-{prep}".replace(" ","")
-        fecha = datetime.today().strftime("%Y-%m-%d")
-        nuevo = {"Código":codigo,"Año":anio,"Receta":receta,"Solución":solucion,
-                 "Semana":semana,"Día":dia,"Preparación":prep,"Fecha_Registro":fecha}
-        inventario_df=pd.concat([inventario_df,pd.DataFrame([nuevo])],ignore_index=True)
-        inventario_df.to_csv(INVENTARIO_CSV,index=False)
-        st.success("Lote registrado")
-        # etiqueta
-        info=[f"Año: {anio}",f"Semana: {semana}",f"Día: {dia}",f"Receta: {receta}",f"Solución: {solucion}",f"Prep: {prep}"]
-        buf = generar_etiqueta(info,codigo)
-        st.image(buf,caption="Etiqueta")
-        st.download_button("Descargar PNG",buf,file_name=f"et_{codigo}.png",mime="image/png")
+        codigo = f"{año}-{receta}-{solucion}-{semana}-{dia}-{prep}".replace(' ','')
+        fecha = datetime.now().strftime("%Y-%m-%d")
+        inv_df.loc[len(inv_df)] = [codigo,año,receta,solucion,semana,dia,prep,fecha]
+        inv_df.to_csv(INV_FILE, index=False)
+        st.success("Lote registrado exitosamente.")
+        info_lines = [f"Año: {año}", f"Semana: {semana}", f"Día: {dia}", f"Receta: {receta}", f"Solución: {solucion}", f"Preparación: {prep}"]
+        qr_data = make_qr("\n".join(info_lines))
+        st.image(qr_data, width=200)
+        st.download_button("⬇️ Descargar etiqueta PNG", data=qr_data, file_name=f"etiqueta_{codigo}.png", mime="image/png")
 
-# --- Sección: Consultar Stock ---
-elif menu=="Consultar Stock":
-    st.subheader("📦 Stock actual")
-    st.dataframe(inventario_df)
-    st.download_button("Descargar Excel",generar_excel(inventario_df),"stock.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+# --- Sección Consultar Stock ---
+elif section == "Consultar Stock":
+    st.subheader("📦 Stock Actual")
+    st.dataframe(inv_df)
+    excel_data = download_excel(inv_df, 'stock.xlsx')
+    st.download_button("⬇️ Descargar Stock Excel", data=excel_data, file_name="stock.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# --- Sección: Inventario General ---
-elif menu=="Inventario General":
-    st.subheader("📊 Inventario General")
-    st.dataframe(inventario_df)
+# --- Sección Inventario ---
+elif section == "Inventario":
+    st.subheader("📊 Inventario Completo")
+    st.dataframe(inv_df)
+    excel_data = download_excel(inv_df, 'inventario.xlsx')
+    st.download_button("⬇️ Descargar Inventario", data=excel_data, file_name="inventario.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# --- Sección: Historial ---
-elif menu=="Historial":
+# --- Sección Historial ---
+elif section == "Historial":
     st.subheader("📚 Historial")
-    df=inventario_df.copy()
-    df["Fecha_Registro"]=pd.to_datetime(df["Fecha_Registro"])
-    start=st.date_input("Desde",df["Fecha_Registro"].min())
-    end=st.date_input("Hasta",df["Fecha_Registro"].max())
-    fil=df[(df["Fecha_Registro"]>=pd.to_datetime(start))&(df["Fecha_Registro"]<=pd.to_datetime(end))]
-    st.dataframe(fil)
-    st.download_button("Descargar Historial",generar_excel(fil),"hist.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    if inv_df.empty:
+        st.info("No hay registros.")
+    else:
+        df = inv_df.copy()
+        df['Fecha'] = pd.to_datetime(df['Fecha'])
+        min_date = df['Fecha'].min().date()
+        max_date = df['Fecha'].max().date()
+        start = st.date_input("Desde", min_value=min_date, max_value=max_date, value=min_date)
+        end = st.date_input("Hasta", min_value=min_date, max_value=max_date, value=max_date)
+        mask = (df['Fecha'].dt.date >= start) & (df['Fecha'].dt.date <= end)
+        df_f = df.loc[mask]
+        st.dataframe(df_f)
+        excel_data = download_excel(df_f, 'historial.xlsx')
+        st.download_button("⬇️ Descargar Historial", data=excel_data, file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# --- Sección: Soluciones Stock ---
-elif menu=="Soluciones Stock":
+# --- Sección Soluciones Stock ---
+elif section == "Soluciones Stock":
     st.subheader("🧪 Soluciones Stock")
-    fecha=st.date_input("Fecha",datetime.today())
-    cant=st.text_input("Cantidad pesada")
-    cod_sol=st.text_input("Código")
-    resp=st.text_input("Responsable")
-    obs=st.text_area("Observaciones")
-    if st.button("Registrar Solución"):
-        new={"Fecha":fecha.strftime("%Y-%m-%d"),"Cantidad_Pesada":cant,
-             "Código_Solución":cod_sol,"Responsable":resp,"Observaciones":obs}
-        soluciones_df=pd.concat([soluciones_df,pd.DataFrame([new])],ignore_index=True)
-        soluciones_df.to_csv(SOLUCIONES_CSV,index=False)
-        st.success("Solución registrada")
-        # etiqueta sol
-        info2=[f"Fecha: {new['Fecha']}",f"Cant: {cant}",f"Cod: {cod_sol}",f"Resp: {resp}"]
-        buf2=generar_etiqueta(info2,cod_sol,"🧪 SOLUCIÓN STOCK")
-        st.image(buf2,caption="Etiqueta Solución")
-        st.download_button("Descargar PNG",buf2,file_name=f"sol_{cod_sol}.png",mime="image/png")
+    f = st.date_input("Fecha de preparación", value=datetime.today())
+    cant = st.text_input("Cantidad (g/mL)")
+    cods = st.text_input("Código de solución")
+    resp = st.text_input("Responsable")
+    obs = st.text_area("Observaciones")
+    if st.button("Registrar solución"):
+        sol_df.loc[len(sol_df)] = [f.strftime("%Y-%m-%d"), cant, cods, resp, obs]
+        sol_df.to_csv(SOL_FILE, index=False)
+        st.success("Solución registrada.")
+        qr_data = make_qr(f"Código: {cods}\nFecha: {f}\nCant: {cant}\nResp: {resp}")
+        st.image(qr_data, width=200)
+        st.download_button("⬇️ Descargar etiqueta PNG", data=qr_data, file_name=f"sol_{cods}.png", mime="image/png")
     st.markdown("---")
-    st.dataframe(soluciones_df)
-    st.download_button("Descargar Excel",generar_excel(soluciones_df),"sol.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    st.dataframe(sol_df)
+    excel_data = download_excel(sol_df, 'soluciones.xlsx')
+    st.download_button("⬇️ Descargar Soluciones", data=excel_data, file_name="soluciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# --- Sección: Recetas de medios ---
-elif menu=="Recetas de medios":
-    st.subheader("📖 Recetas de medios")
-    excel_file="RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
-    wb=pd.ExcelFile(excel_file)
-    sheet=st.selectbox("Elige medio",wb.sheet_names)
-    dfm=wb.parse(sheet)
-    dfm2=dfm.iloc[9:,[0,1,2]].dropna()
-    dfm2.columns=["Componente","Fórmula","Conc."]
-    st.dataframe(dfm2)
-    st.download_button("Descargar Receta",BytesIO(dfm2.to_excel(index=False,engine="openpyxl")),f"receta_{sheet}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+# --- Sección Recetas ---
+elif section == "Recetas":
+    st.subheader("📖 Recetas de Medios")
+    if not recipes:
+        st.info("No se encontró el archivo de recetas.")
+    else:
+        sel = st.selectbox("Selecciona medio", list(recipes.keys()))
+        dfm = recipes.get(sel, pd.DataFrame())
+        st.dataframe(dfm)
+        if not dfm.empty:
+            buf = BytesIO(); dfm.to_excel(buf, index=False); buf.seek(0)
+            st.download_button("⬇️ Descargar receta Excel", data=buf.getvalue(), file_name=f"receta_{sel}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
