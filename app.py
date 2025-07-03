@@ -188,7 +188,7 @@ elif choice == "Imprimir Etiquetas":
         labels.append(img)
         buf = BytesIO()
         img.save(buf, format="PNG")
-        st.image(buf.getvalue(), use_column_width=False)
+        st.image(buf.getvalue(), use_container_width=True)
     if labels:
         if st.button("Generar PDF etiquetas"):
             pdf_buf = BytesIO()
