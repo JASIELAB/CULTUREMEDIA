@@ -3,5 +3,6 @@ pandas
 openpyxl
 qrcode
 Pillow
+pip install fpdf
 fpdf
 
