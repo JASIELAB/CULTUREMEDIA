@@ -125,7 +125,7 @@ elif choice == "Consultar Stock":
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-elif choice == "Inventario"::
+elif choice == "Inventario":
     st.subheader("📊 Inventario Completo")
     st.dataframe(inv_df)
     st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
