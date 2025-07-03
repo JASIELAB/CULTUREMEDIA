@@ -212,7 +212,7 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascros: {r['Frascros']}"
+                f"Frascos: {r['Frascros']}" if 'Frascros' in r else f"Frascos: {r['Frascos']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
