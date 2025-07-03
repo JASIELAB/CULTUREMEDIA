@@ -4,6 +4,7 @@ import qrcode
 from io import BytesIO
 from datetime import date
 import os
+from PIL import Image, ImageDraw, ImageFont
 
 # --- Configuración de página y estilos ---
 st.set_page_config(page_title="Medios de Cultivo InVitro", layout="wide")
@@ -60,6 +61,26 @@ def make_qr(text: str) -> bytes:
     buf.seek(0)
     return buf.getvalue()
 
+def make_label(info: list, qr_bytes: bytes) -> bytes:
+    # Crear imagen de etiqueta (350x200 px)
+    label = Image.new("RGB", (350, 200), "white")
+    draw = ImageDraw.Draw(label)
+    # Fuente por defecto
+    font = ImageFont.load_default()
+    # Escribir texto
+    y = 10
+    for line in info:
+        draw.text((10, y), line, fill="black", font=font)
+        y += 20
+    # Insertar QR resized
+    qr_img = Image.open(BytesIO(qr_bytes)).resize((150, 150))
+    label.paste(qr_img, (350-160, 10))
+    # Exportar a bytes
+    buf = BytesIO()
+    label.save(buf, format="PNG")
+    buf.seek(0)
+    return buf.getvalue()
+
 def to_excel_bytes(df: pd.DataFrame) -> bytes:
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine='openpyxl') as writer:
@@ -109,9 +130,10 @@ if choice == "Registrar Lote":
             f"Código: {cod}", f"Año: {año}", f"Receta: {receta}", f"Solución: {solucion}",
             f"Frascos: {frascos}", f"pH ajustado: {ph_aj}", f"pH final: {ph_fin}", f"CE final: {ce}"
         ]
-        qr = make_qr("\n".join(info))
-        st.image(qr, width=200)
-        st.download_button("⬇️ Descargar etiqueta PNG", data=qr, file_name=f"etiqueta_{cod}.png", mime="image/png")
+        qr_bytes = make_qr("\n".join(info))
+        label_bytes = make_label(info, qr_bytes)
+        st.image(label_bytes, width=350)
+        st.download_button("⬇️ Descargar etiqueta PNG", data=label_bytes, file_name=f"etiqueta_{cod}.png", mime="image/png")
 
 # --- Sección Consultar Stock ---
 elif choice == "Consultar Stock":
@@ -168,15 +190,6 @@ elif choice == "Soluciones Stock":
         sol_df.loc[len(sol_df)] = [fdate.isoformat(), qty, code_s, who, regulador, obs2]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
-        st.markdown(
-            f"""
-            **Código:** {code_s}  
-            **Fecha:** {fdate.isoformat()}  
-            **Cantidad:** {qty}  
-            **Responsable:** {who}  
-            **Regulador:** {regulador}
-            """
-        )
         info2 = [
             f"Código: {code_s}",
             f"Fecha: {fdate.isoformat()}",
@@ -185,13 +198,17 @@ elif choice == "Soluciones Stock":
             f"Regulador: {regulador}"
         ]
         qr2 = make_qr("\n".join(info2))
-        st.image(qr2, width=200)
-        st.download_button("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")
+        label2 = make_label(info2, qr2)
+        st.image(label2, width=350)
+        st.download_button("⬇️ Descargar etiqueta PNG", data=label2, file_name=f"sol_{code_s}.png", mime="image/png")
     st.markdown("---")
     st.subheader("📋 Registro de soluciones stock")
-    del_sol = st.multiselect("Eliminar solución(es):", sol_df['Código_Solución'].dropna().tolist())
-    if del_sol and st.button("🗑️ Eliminar solución(es)"):
-        sol_df = sol_df[~sol_df['Código_Solución'].isin(del_sol)]
+    # Eliminar soluciones seleccionadas
+    options = {f"{idx} - {row['Fecha']} ({row['Código_Solución']})": idx for idx, row in sol_df.iterrows()}
+    sel = st.multiselect("Eliminar solución(es):", list(options.keys()))
+    if sel and st.button("🗑️ Eliminar solución(es) "):
+        to_drop = [options[s] for s in sel]
+        sol_df = sol_df.drop(to_drop).reset_index(drop=True)
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Soluciones eliminadas.")
     st.dataframe(sol_df)
