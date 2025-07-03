@@ -86,6 +86,8 @@ def to_excel_bytes(df: pd.DataFrame) -> bytes:
 # --- Login ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
+    st.session_state.user = None
+    st.session_state.role = None
 if not st.session_state.logged_in:
     st.sidebar.title("🔐 Login")
     usr = st.sidebar.text_input("Usuario")
@@ -95,7 +97,6 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.session_state.user = usr
             st.session_state.role = users[usr]['role']
-            st.experimental_rerun()
         else:
             st.sidebar.error("Credenciales inválidas")
     st.stop()
@@ -112,16 +113,39 @@ col1.image("logo_blackberry.png", width=60)
 col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- Secciones (definir según versiones previas) ---
+# --- Secciones (plantilla) ---
+def section_registrar():
+    st.subheader("📝 Registrar Lote")
+    st.write("Implementar formulario aquí...")
+def section_consultar():
+    st.subheader("🔍 Consultar Stock")
+    st.write(inv_df)
+def section_inventario():
+    st.subheader("📋 Inventario Actual")
+    st.write(inv_df)
+def section_historial():
+    st.subheader("📜 Historial")
+    st.write(inv_df)
+def section_soluciones():
+    st.subheader("🧪 Soluciones Stock")
+    st.write(sol_df)
+def section_recetas():
+    st.subheader("📖 Recetas")
+    receta = st.selectbox("Selecciona receta", list(recipes.keys()))
+    if receta:
+        st.dataframe(recipes[receta])
+def section_imprimir():
+    st.subheader("🖨️ Imprimir Etiquetas")
+    st.write("Funcionalidad de impresión...")
 def section_bajas():
-    st.subheader("⚠️ Dar de baja Inventarios")
-    pass
+    st.subheader("⚠️ Bajas Inventario")
+    st.write("Form para dar de baja...")
 def section_admin():
     st.subheader("⚙️ Administración del Sistema")
     st.write(f"Usuario: {st.session_state.user} (rol: {st.session_state.role})")
     st.markdown("---")
     st.subheader("👥 Gestión de Usuarios")
-    st.write("Usuarios:", users)
+    st.write(users)
     new_u = st.text_input("Nuevo usuario")
     new_p = st.text_input("Contraseña", type="password")
     new_r = st.selectbox("Rol", ["user","admin"])
@@ -130,18 +154,25 @@ def section_admin():
         save_users(users)
         st.experimental_rerun()
     to_del = st.multiselect("Eliminar usuario", [u for u in users if u != st.session_state.user])
-    if st.button("Eliminar"):
+    if st.button("Eliminar usuario"):
         for u in to_del: users.pop(u, None)
         save_users(users)
         st.experimental_rerun()
 
 # --- Dispatcher ---
 dispatch = {
+    "Registrar Lote": section_registrar,
+    "Consultar Stock": section_consultar,
+    "Inventario": section_inventario,
+    "Historial": section_historial,
+    "Soluciones Stock": section_soluciones,
+    "Recetas": section_recetas,
+    "Imprimir Etiquetas": section_imprimir,
     "Bajas Inventario": section_bajas,
-    "Administrar Sistema": section_admin,
+    "Administrar Sistema": section_admin
 }
-dispatch.get(choice, lambda: st.write(f"Sección '{choice}' aún no implementada."))()
+dispatch.get(choice, lambda: st.write("Sección no implementada."))()
 
-# Footer
-txt = f"**Usuario**: {st.session_state.user}  \n**Rol**: {st.session_state.role}"
-st.sidebar.markdown(txt)
+# --- Footer ---
+footer = "**Usuario**: {}  \n**Rol**: {}".format(st.session_state.user, st.session_state.role)
+st.sidebar.markdown(footer)
