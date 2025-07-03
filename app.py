@@ -170,6 +170,17 @@ elif choice == "Soluciones Stock":
         sol_df.loc[len(sol_df)] = [fdate.isoformat(), qty, code_s, who, regulador, obs2]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
+        # Mostrar etiqueta con los datos
+        st.markdown(
+            f"""
+            **Código:** {code_s}  
+            **Fecha:** {fdate.isoformat()}  
+            **Cantidad:** {qty}  
+            **Responsable:** {who}  
+            **Regulador:** {regulador}
+            """
+        )
+        # Generar y mostrar QR
         info2 = [
             f"Código: {code_s}",
             f"Fecha: {fdate.isoformat()}",
@@ -177,9 +188,10 @@ elif choice == "Soluciones Stock":
             f"Responsable: {who}",
             f"Regulador: {regulador}"
         ]
-        qr2 = make_qr("\n".join(info2))
+        qr2 = make_qr("
+".join(info2))
         st.image(qr2, width=200)
-        st.download_button("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")
+        st.download_button("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")
     st.markdown("---")
     st.subheader("📋 Registro de soluciones stock")
     del_sol = st.multiselect("Eliminar solución(es):", sol_df['Código_Solución'].dropna().tolist())
