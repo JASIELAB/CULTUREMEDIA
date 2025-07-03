@@ -90,7 +90,8 @@ with st.sidebar:
         "Historial",
         "Soluciones Stock",
         "Recetas",
-        "Bajas Inventario"
+        "Bajas Inventario",
+        "Imprimir Etiquetas"
     ])
 
 # --- Encabezado ---
@@ -100,6 +101,7 @@ col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo 
 st.markdown("---")
 
 # --- Secciones ---
+
 def section_registrar_lote():
     st.subheader("📋 Registrar Nuevo Lote")
     año = st.text_input("Año (ej. 2025)")
@@ -193,6 +195,34 @@ def section_recetas():
         buf.seek(0)
         st.download_button("⬇️ Descargar Receta Excel", data=buf.getvalue(), file_name=f"receta_{sel}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+def section_imprimir_etiquetas():
+    st.subheader("🖨️ Imprimir Etiquetas")
+    if inv_df.empty:
+        st.info("No hay lotes registrados.")
+        return
+    cod = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
+    copies = st.number_input("Número de etiquetas a imprimir", min_value=1, value=1)
+    if st.button("Generar etiquetas"):
+        row = inv_df.loc[inv_df['Código']==cod].iloc[0]
+        info = [
+            f"Código: {row['Código']}",
+            f"Año: {row['Año']}",
+            f"Receta: {row['Receta']}",
+            f"Solución: {row['Solución']}",
+            f"Preparación: {row['Preparación']}",
+            f"Frascos: {row['Frascos']}",
+            f"pH ajustado: {row['pH_Ajustado']}",
+            f"pH final: {row['pH_Final']}",
+            f"CE: {row['CE_Final']}"
+        ]
+        cols = st.columns(2)
+        for i in range(copies):
+            qr_bytes = make_qr("\n".join(info + [f"Etiqueta: {i+1}"]))
+            label_bytes = make_label(info + [f"Etiqueta: {i+1}"], qr_bytes)
+            col = cols[i % 2]
+            col.image(label_bytes, width=300)
+            col.download_button("⬇️ Desc. etiqueta", data=label_bytes, file_name=f"et_{cod}_{i+1}.png", mime="image/png")
+
 def section_bajas():
     st.subheader("⚠️ Dar de baja Inventarios")
     tipo = st.radio("Tipo de baja:", ["Medios","Soluciones"])
@@ -232,3 +262,5 @@ elif choice == "Recetas":
     section_recetas()
 elif choice == "Bajas Inventario":
     section_bajas()
+elif choice == "Imprimir Etiquetas":
+    section_imprimir_etiquetas()
