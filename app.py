@@ -112,6 +112,7 @@ def section_registrar_lote():
         inv_df.to_csv(INV_FILE, index=False)
         st.success("Lote registrado exitosamente.")
 
+
 def section_consultar_stock():
     st.subheader("📦 Stock Actual")
     st.dataframe(inv_df)
@@ -186,7 +187,26 @@ def section_incubacion():
                     f"<b>{row['Código']}</b> – {dias} días</div>", unsafe_allow_html=True)
 
 
-def section_bajas():
-    st.subheader("⚠️ Dar de baja Inventarios")
-    tipo = st.radio("Tipo de baja:", ["Medios","Soluciones"])...
+def section_bajas_inventario():
+    st.subheader("⚠️ Bajas de Inventario")
+    tipo = st.radio("Tipo de baja:", ["Medios","Soluciones"])
+    if tipo == "Medios":
+        if inv_df.empty:
+            st.info("No hay lotes para dar de baja.")
+            return
+        select = st.selectbox("Selecciona lote:", inv_df['Código'].tolist())
+        cantidad = st.number_input("Cantidad de frascos a dar de baja", min_value=1, max_value=inv_df.loc[inv_df['Código']==select, 'Frascos'].iloc[0], value=1)
+        motivo = st.text_area("Motivo consumo/merma")
+        if st.button("Aplicar baja medios"):
+            idx = inv_df[inv_df['Código']==select].index[0]
+            inv_df.at[idx, 'Frascos'] -= cantidad
+            inv_df.to_csv(INV_FILE, index=False)
+            st.success("Frascos dados de baja.")
+    else:
+        if sol_df.empty:
+            st.info("No hay soluciones para dar de baja.")
+            return
+        select_s = st.selectbox("Selecciona solución:", sol_df['Código_Solución'].tolist())
+        if st.button("Eliminar solución"
+
 }]}
