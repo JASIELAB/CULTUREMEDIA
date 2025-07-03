@@ -8,16 +8,16 @@ from PIL import Image, ImageDraw, ImageFont
 
 # --- Configuración de página y estilos ---
 st.set_page_config(page_title="Medios de Cultivo InVitro", layout="wide")
-# Paleta azul y grises
-PRIMARY_COLOR = "#005B96"       # Azul oscuro
-ACCENT_COLOR = "#6E7B8B"        # Gris ceniza
-BG_COLOR = "#F0F2F6"            # Gris muy claro
-TEXT_COLOR = "#333333"          # Gris oscuro
+# Paleta rojo y blanco
+PRIMARY_COLOR = "#D32F2F"       # Rojo intenso
+ACCENT_COLOR = "#FFFFFF"        # Blanco
+BG_COLOR = "#FFEBEE"            # Fondo rojo muy claro
+TEXT_COLOR = "#000000"          # Negro
 st.markdown(f"""
 <style>
     .stApp {{ background-color: {BG_COLOR}; color: {TEXT_COLOR}; }}
-    div.stButton>button {{ background-color: {PRIMARY_COLOR}; color: white; }}
-    div.stDownloadButton>button {{ background-color: {ACCENT_COLOR}; color: white; }}
+    div.stButton>button {{ background-color: {PRIMARY_COLOR}; color: {ACCENT_COLOR}; }}
+    div.stDownloadButton>button {{ background-color: {PRIMARY_COLOR}; color: {ACCENT_COLOR}; }}
 </style>
 """, unsafe_allow_html=True)
 
