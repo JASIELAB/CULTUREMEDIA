@@ -1,6 +1,6 @@
 streamlit
 pandas
-openpyxl
 qrcode
 Pillow
-fpdf
+openpyxl
+fpdf==1.7.2
