@@ -8,7 +8,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 # --- Configuración de página y estilos ---
 st.set_page_config(page_title="Medios de Cultivo InVitro", layout="wide")
-# Paleta rojo y blanco
 PRIMARY_COLOR = "#D32F2F"
 ACCENT_COLOR = "#FFFFFF"
 BG_COLOR = "#FFEBEE"
@@ -57,7 +56,7 @@ def make_qr(text: str) -> bytes:
     return buf.getvalue()
 
 def make_label(info: list, qr_bytes: bytes) -> Image.Image:
-    label = Image.new("RGB", (400, 130), "white")
+    label = Image.new("RGB", (400, 140), "white")
     draw = ImageDraw.Draw(label)
     try:
         font = ImageFont.truetype("arial.ttf", 14)
@@ -111,20 +110,14 @@ def section_registrar_lote():
         inv_df.loc[len(inv_df)] = [cod_base, año, receta, solucion, semana, dia, prep, frascos, ph_aj, ph_fin, ce, fecha]
         inv_df.to_csv(INV_FILE, index=False)
         st.success("Lote registrado exitosamente.")
-    st.markdown("---")
-    st.subheader("🔬 Inventario de Soluciones Stock")
-    st.dataframe(sol_df)
-
 
 def section_consultar_stock():
     st.subheader("🔍 Consultar Stock")
     st.dataframe(inv_df)
 
-
 def section_inventario():
     st.subheader("📦 Inventario Completo")
     st.dataframe(inv_df)
-
 
 def section_historial():
     st.subheader("📜 Historial de Lotes")
@@ -132,7 +125,6 @@ def section_historial():
     end = st.date_input("Hasta", date.today())
     mask = (pd.to_datetime(inv_df['Fecha']) >= pd.to_datetime(start)) & (pd.to_datetime(inv_df['Fecha']) <= pd.to_datetime(end))
     st.dataframe(inv_df[mask])
-
 
 def section_soluciones_stock():
     st.subheader("📊 Registro de Soluciones Stock")
@@ -150,26 +142,24 @@ def section_soluciones_stock():
     st.subheader("🗒 Inventario de Soluciones Stock")
     st.dataframe(sol_df)
 
-
 def section_recetas():
     st.subheader("📖 Recetas de Medios")
-    opc = st.selectbox("Selecciona una receta:", list(recipes.keys()))
+    opc = st.selectbox("Selecciona una receta:", [*recipes.keys()])
     st.dataframe(recipes[opc])
-
 
 def section_incubacion():
     st.subheader("⏳ Incubación de Lotes")
     df = inv_df.copy()
     df['Días'] = (pd.to_datetime(date.today()) - pd.to_datetime(df['Fecha'])).dt.days
-    def color_row(days):
-        if days > 30:
+    def color_row(x):
+        d = x['Días']
+        if d > 30:
             return ['background-color: #EF9A9A']*len(df.columns)
-        elif days < 7:
+        elif d < 7:
             return ['background-color: #A5D6A7']*len(df.columns)
         else:
             return ['background-color: #FFF59D']*len(df.columns)
-    st.dataframe(df.style.apply(lambda x: color_row(x['Días']), axis=1))
-
+    st.dataframe(df.style.apply(color_row, axis=1))
 
 def section_bajas_inventario():
     st.subheader("⚠️ Bajas de Inventario")
@@ -184,9 +174,50 @@ def section_bajas_inventario():
     st.markdown("---")
     st.dataframe(inv_df)
 
-
 def section_imprimir_etiquetas():
     st.subheader("🖨️ Imprimir Etiquetas")
     sel = st.multiselect("Selecciona lotes:", inv_df['Código'].tolist())
     if st.button("Generar PDF etiquetas"):
-        labels=[]
+        imgs = []
+        for code in sel:
+            rec = inv_df[inv_df['Código']==code].iloc[0]
+            info = [
+                f"Código: {rec['Código']}",
+                f"Año: {rec['Año']}",
+                f"Receta: {rec['Receta']}",
+                f"Solución: {rec['Solución']}",
+                f"Semana: {rec['Semana']}",
+                f"Día: {rec['Día']}  Prep: {rec['Preparación']}",
+                f"Frascos: {rec['Frascos']}",
+                f"pH ajustado: {rec['pH_Ajustado']}",
+                f"pH final: {rec['pH_Final']}",
+                f"CE: {rec['CE_Final']}"
+            ]
+            qr = make_qr(rec['Código'])
+            img = make_label(info, qr)
+            imgs.append(img)
+        if imgs:
+            pdf_buf = BytesIO()
+            imgs[0].convert('RGB').save(pdf_buf, format='PDF', save_all=True, append_images=[i.convert('RGB') for i in imgs[1:]])
+            pdf_buf.seek(0)
+            st.download_button("📄 Descargar PDF Etquetas", pdf_buf, file_name="etiquetas.pdf")
+
+# --- Enrutamiento de secciones ---
+if choice == "Registrar Lote":
+    section_registrar_lote()
+elif choice == "Consultar Stock":
+    section_consultar_stock()
+elif choice == "Inventario":
+    section_inventario()
+elif choice == "Historial":
+    section_historial()
+elif choice == "Soluciones Stock":
+    section_soluciones_stock()
+elif choice == "Recetas":
+    section_recetas()
+elif choice == "Incubación":
+    section_incubacion()
+elif choice == "Bajas Inventario":
+    section_bajas_inventario()
+elif choice == "Imprimir Etiquetas":
+    section_imprimir_etiquetas()
