@@ -4,3 +4,4 @@ openpyxl
 qrcode
 Pillow
 fpdf
+streamlit-option-menu==0.3.4
