@@ -115,36 +115,17 @@ if choice == "Registrar Lote":
 # --- Sección Consultar Stock ---
 elif choice == "Consultar Stock":
     st.subheader("📦 Stock Actual")
+    # Mostrar inventario actual sin ajustes
     st.dataframe(inv_df)
-    # Dar de baja frascos o eliminar lotes completos
-    st.markdown("---")
-    st.subheader("💔 Ajustes de Stock")
-    sub_choice = st.radio("Acción:", ["Baja frascos","Eliminar lote"])
-    if sub_choice == "Baja frascos":
-        lote = st.selectbox("Lote:", inv_df['Código'].tolist(), key='baja_lote')
-        baja = st.number_input("Número de frascos a dar de baja:", min_value=1)
-        motivo = st.text_input("Motivo consumo/merma:")
-        if st.button("Aplicar baja", key='btn_baja'):
-            idx = inv_df.index[inv_df['Código']==lote]
-            if idx.any():
-                i = idx[0]
-                if baja <= inv_df.at[i, 'Frascos']:
-                    inv_df.at[i,'Frascos'] -= baja
-                    inv_df.to_csv(INV_FILE, index=False)
-                    st.success(f"{baja} frascos dados de baja en {lote}.")
-                else:
-                    st.error("Cantidad excede stock.")
-    else:
-        to_del = st.multiselect("Selecciona lote(s) a eliminar:", inv_df['Código'].tolist())
-        if to_del and st.button("🗑️ Eliminar lote(s)", key='btn_del_lote'):
-            inv_df = inv_df[~inv_df['Código'].isin(to_del)]
-            inv_df.to_csv(INV_FILE, index=False)
-            st.success("Lote(s) eliminado(s)")
-    st.markdown("---")
-    st.download_button("⬇️ Descargar Stock Excel", data=to_excel_bytes(inv_df), file_name="stock.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    # Descarga del inventario actual
+    st.download_button(
+        "⬇️ Descargar Stock Excel", 
+        data=to_excel_bytes(inv_df), 
+        file_name="stock_actual.xlsx", 
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
-# --- Sección Inventario General ---
-elif choice == "Inventario":
+elif choice == "Inventario"::
     st.subheader("📊 Inventario Completo")
     st.dataframe(inv_df)
     st.download_button("⬇️ Descargar Inventario Excel", data=to_excel_bytes(inv_df), file_name="inventario.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
