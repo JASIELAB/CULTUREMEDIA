@@ -5,7 +5,6 @@ from io import BytesIO
 from datetime import date, datetime
 from PIL import Image, ImageDraw, ImageFont
 import os
-import streamlit.components.v1 as components
 
 # --- Page Config ---
 st.set_page_config(page_title="Medios Cultivo", layout="wide")
@@ -217,10 +216,16 @@ elif choice == "Imprimir Etiquetas":
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
+            # Mostrar etiqueta en pantalla
             st.image(lbl)
-        st.info("Usa clic derecho para guardar o imprimir PDF.")
-        # Botón para imprimir directamente desde el navegador
-        components.html(
-            '<button onclick="window.print()" style="font-size:16px; padding:8px 16px;">Imprimir Página</button>',
-            height=60
-        )
+            # Generar PDF y ofrecer descarga
+            pdf_buf = BytesIO()
+            lbl_rgb = lbl.convert('RGB')
+            lbl_rgb.save(pdf_buf, format='PDF')
+            pdf_buf.seek(0)
+            st.download_button(
+                f"Descargar PDF {code}", pdf_buf,
+                file_name=f"{code}.pdf",
+                mime='application/pdf'
+            )
+        st.info("Etiquetas generadas y listas para descargar.")
