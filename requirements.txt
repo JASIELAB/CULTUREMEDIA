@@ -1,6 +1,0 @@
-streamlit
-pandas
-qrcode
-Pillow
-openpyxl
-fpdf==1.7.2
