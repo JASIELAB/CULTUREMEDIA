@@ -33,6 +33,9 @@ sol_columns = ["Fecha","Cantidad","Código_Solución","Responsable","Observacion
 
 if os.path.exists(INV_FILE):
     inv_df = pd.read_csv(INV_FILE)
+    # Renombrar columna antigua si existe
+    if 'Fecha_Registro' in inv_df.columns:
+        inv_df.rename(columns={'Fecha_Registro': 'Fecha'}, inplace=True)
 else:
     inv_df = pd.DataFrame(columns=inv_columns)
 
@@ -118,6 +121,40 @@ if section == "Registrar Lote":
 elif section == "Consultar Stock":
     st.subheader("📦 Stock Actual")
     st.dataframe(inv_df)
+
+    # Dar de baja frascos por uso o merma
+    st.markdown("---")
+    st.subheader("💔 Dar de baja frascos")
+    baja_lote = st.selectbox("Selecciona lote:", options=inv_df["Código"].tolist(), key='baja_lote')
+    baja_cant = st.number_input("Número de frascos a dar de baja:", min_value=1, step=1, key='baja_cant')
+    motivo = st.text_input("Motivo (uso/merma):", key='baja_motivo')
+    if st.button("✔️ Aplicar baja de frascos"):
+        idx = inv_df.index[inv_df["Código"] == baja_lote]
+        if not idx.empty:
+            i = idx[0]
+            actuales = inv_df.at[i, "Frascos"]
+            if baja_cant <= actuales:
+                inv_df.at[i, "Frascos"] = actuales - baja_cant
+                inv_df.to_csv(INV_FILE, index=False)
+                st.success(f"Se dieron de baja {baja_cant} frascos de {baja_lote} por '{motivo}'. Quedan {actuales - baja_cant} frascos.")
+                st.experimental_rerun()
+            else:
+                st.error(f"No se puede dar de baja {baja_cant} frascos; solo hay {actuales} disponibles.")
+        else:
+            st.error("Lote no encontrado.")
+
+    # Eliminar registros completos
+    st.markdown("---")
+    cods_borrar = st.multiselect("Selecciona lote(s) a eliminar por completo:", options=inv_df["Código"].tolist(), key='borrar_lotes')
+    if cods_borrar:
+        if st.button("🗑️ Borrar lote(s) seleccionados"):
+            inv_df.drop(inv_df[inv_df["Código"].isin(cods_borrar)].index, inplace=True)
+            inv_df.to_csv(INV_FILE, index=False)
+            st.success(f"Se borraron {len(cods_borrar)} lote(s).")
+            st.experimental_rerun()
+
+    # Descarga de stock
+    st.markdown("---")
     st.download_button("⬇️ Descargar Stock", data=download_excel(inv_df), file_name="stock.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # --- Sección: Inventario ---
@@ -146,6 +183,7 @@ elif section == "Historial":
 # --- Sección: Soluciones Stock ---
 elif section == "Soluciones Stock":
     st.subheader("🧪 Soluciones Stock")
+    # Formulario de registro
     f = st.date_input("Fecha de preparación", value=datetime.today())
     cant = st.text_input("Cantidad (g/mL)")
     cods = st.text_input("Código de solución")
@@ -155,9 +193,25 @@ elif section == "Soluciones Stock":
         sol_df.loc[len(sol_df)] = [f.strftime("%Y-%m-%d"), cant, cods, resp, obs]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
-        qr_data = make_qr(f"Código: {cods}\nFecha: {f}\nCant: {cant}\nResp: {resp}")
+        qr_data = make_qr(f"Código: {cods}
+Fecha: {f}
+Cant: {cant}
+Resp: {resp}")
         st.image(qr_data, width=200)
         st.download_button("⬇️ Descargar etiqueta PNG", data=qr_data, file_name=f"sol_{cods}.png", mime="image/png")
+    st.markdown("---")
+    # Mostrar y borrar registros existentes
+    st.subheader("📋 Registro de soluciones stock")
+    # Selección de registros a borrar
+    borrar = st.multiselect("Selecciona solución(es) a borrar:", options=sol_df['Código_Solución'].tolist())
+    if borrar:
+        if st.button("🗑️ Borrar soluciones seleccionadas"):
+            sol_df = sol_df[~sol_df['Código_Solución'].isin(borrar)]
+            sol_df.to_csv(SOL_FILE, index=False)
+            st.success(f"Se borraron {len(borrar)} solución(es).")
+            st.experimental_rerun()
+    st.dataframe(sol_df)
+    st.download_button("⬇️ Descargar Soluciones", data=download_excel(sol_df), file_name="soluciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")("⬇️ Descargar etiqueta PNG", data=qr_data, file_name=f"sol_{cods}.png", mime="image/png")
     st.markdown("---")
     st.dataframe(sol_df)
     st.download_button("⬇️ Descargar Soluciones", data=download_excel(sol_df), file_name="soluciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
