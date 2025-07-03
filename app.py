@@ -3,6 +3,19 @@ import pandas as pd
 import qrcode
 from io import BytesIO
 from datetime import date, datetime
+import os
+from PIL import Image, ImageDraw, ImageFont
+
+# --- Page Config ---
+st.set_page_config("Medios Cultivo", layout="wide")
+
+# --- Logo ---
+logo_path = "plablue.png"
+if os.path.exists(logo_path):
+    logo = Image.open(logo_path)
+    st.image(logo, width=120)
+else:
+    st.warning(f"Logo '{logo_path}' no encontrado.")
 
 # --- Helpers ---
 def make_qr(text: str) -> BytesIO:
@@ -12,9 +25,7 @@ def make_qr(text: str) -> BytesIO:
     buf.seek(0)
     return buf
 
-from PIL import Image, ImageDraw, ImageFont
-
-def make_label(info_lines, qr_buf, size=(250,120)):
+ def make_label(info_lines, qr_buf, size=(250,120)):
     w,h = size
     img = Image.new("RGB", (w,h), "white")
     draw = ImageDraw.Draw(img)
@@ -38,7 +49,7 @@ SOL_FILE = "soluciones_stock.csv"
 REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 inv_cols = ["Código","Año","Receta","Solución","Semana","Día","Preparación","Frascos","pH_Ajustado","pH_Final","CE_Final","Fecha"]
 sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
-import os
+
 inv_df = pd.read_csv(INV_FILE) if os.path.exists(INV_FILE) else pd.DataFrame(columns=inv_cols)
 sol_df = pd.read_csv(SOL_FILE) if os.path.exists(SOL_FILE) else pd.DataFrame(columns=sol_cols)
 
@@ -52,9 +63,6 @@ if os.path.exists(REC_FILE):
             sub = df.iloc[9:,:3].dropna(how='all').copy()
             sub.columns = ["Componente","Fórmula","Concentración"]
             recipes[sheet] = sub
-
-# --- App Config ---
-st.set_page_config("Medios Cultivo", layout="wide")
 
 # --- Grid Menu in Main Page ---
 st.title("Control de Medios de Cultivo InVitro")
@@ -156,7 +164,7 @@ elif choice == "Imprimir Etiquetas":
     if st.button("Generar etiquetas") and sels:
         for code in sels:
             r = inv_df[inv_df['Código']==code].iloc[0]
-            info = [f"Código: {code}", f"Año: {r['Año']}", f"Receta: {r['Receta']}", f"Sol.: {r['Solución']}", f"Sem: {r['Semana']}", f"Día: {r['Día']}", f"Prep: {r['Preparación']}", f"Frascos: {r['Frascos']}"]
+            info = [f"Código: {code}", f"Año: {r['Año']}", f"Receta: {r['Receta']}", f"Sol.: {r['Solución']}", f"Sem: {r['Semana']}", f"Día: {r['Día']}", f"Prep: {r['Preparación']}", f"Frascos: {r['Frascos']}]
             buf = make_qr(code)
             lbl = make_label(info, buf)
             st.image(lbl)
