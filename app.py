@@ -115,9 +115,7 @@ st.markdown("---")
 # --- Secciones (definir según versiones previas) ---
 def section_bajas():
     st.subheader("⚠️ Dar de baja Inventarios")
-    # ... implementación ...
     pass
-
 def section_admin():
     st.subheader("⚙️ Administración del Sistema")
     st.write(f"Usuario: {st.session_state.user} (rol: {st.session_state.role})")
@@ -141,10 +139,9 @@ def section_admin():
 dispatch = {
     "Bajas Inventario": section_bajas,
     "Administrar Sistema": section_admin,
-    # ... otras secciones ...
 }
 dispatch.get(choice, lambda: st.write(f"Sección '{choice}' aún no implementada."))()
 
 # Footer
-st.sidebar.markdown(f"**Usuario**: {st.session_state.user}  
-**Rol**: {st.session_state.role}")
+txt = f"**Usuario**: {st.session_state.user}  \n**Rol**: {st.session_state.role}"
+st.sidebar.markdown(txt)
