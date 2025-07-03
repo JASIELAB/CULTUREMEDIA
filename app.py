@@ -4,7 +4,6 @@ import qrcode
 from io import BytesIO
 from datetime import date
 import os
-import json
 from PIL import Image, ImageDraw, ImageFont
 
 # --- Configuración de página y estilos ---
@@ -24,13 +23,21 @@ st.markdown(f"""
 INV_FILE = "inventario_medios.csv"
 SOL_FILE = "soluciones_stock.csv"
 REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
-USERS_FILE = "users.json"
 
 # --- Carga inicial de datos ---
 inv_cols = ["Código","Año","Receta","Solución","Semana","Día","Preparación","Frascos","pH_Ajustado","pH_Final","CE_Final","Fecha"]
-inv_df = pd.read_csv(INV_FILE)[inv_cols] if os.path.exists(INV_FILE) else pd.DataFrame(columns=inv_cols)
+if os.path.exists(INV_FILE):
+    inv_df = pd.read_csv(INV_FILE)
+    inv_df = inv_df.reindex(columns=inv_cols)
+else:
+    inv_df = pd.DataFrame(columns=inv_cols)
+
 sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
-sol_df = pd.read_csv(SOL_FILE)[sol_cols] if os.path.exists(SOL_FILE) else pd.DataFrame(columns=sol_cols)
+if os.path.exists(SOL_FILE):
+    sol_df = pd.read_csv(SOL_FILE)
+    sol_df = sol_df.reindex(columns=sol_cols)
+else:
+    sol_df = pd.DataFrame(columns=sol_cols)
 
 # --- Carga de recetas ---
 recipes = {}
@@ -43,18 +50,6 @@ if os.path.exists(REC_FILE):
             sub.columns = ["Componente","Fórmula","Concentración"]
             recipes[sheet] = sub
 
-# --- Gestión de usuarios con roles ---
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        with open(USERS_FILE, 'w') as f:
-            json.dump({"admin":{"pwd":"1234","role":"admin"}}, f)
-    with open(USERS_FILE) as f:
-        return json.load(f)
-def save_users(users):
-    with open(USERS_FILE, 'w') as f:
-        json.dump(users, f)
-users = load_users()
-
 # --- Funciones auxiliares ---
 def make_qr(text: str) -> bytes:
     img = qrcode.make(text)
@@ -62,8 +57,9 @@ def make_qr(text: str) -> bytes:
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf.getvalue()
-def make_label(info: list, qr_bytes: bytes) -> Image.Image:
-    label = Image.new("RGB", (400, 130), "white")
+
+def make_label(info: list, qr_bytes: bytes, size=(400,130)) -> Image.Image:
+    label = Image.new("RGB", size, "white")
     draw = ImageDraw.Draw(label)
     try:
         font = ImageFont.truetype("arial.ttf", 14)
@@ -74,105 +70,110 @@ def make_label(info: list, qr_bytes: bytes) -> Image.Image:
         draw.text((10, y), line, fill="black", font=font)
         y += 18
     qr_img = Image.open(BytesIO(qr_bytes)).resize((80, 80))
-    label.paste(qr_img, (310, 10))
+    label.paste(qr_img, (size[0]-90, 10))
     return label
-def to_excel_bytes(df: pd.DataFrame) -> bytes:
-    buf = BytesIO()
-    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False)
-    buf.seek(0)
-    return buf.getvalue()
-
-# --- Login ---
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.user = None
-    st.session_state.role = None
-if not st.session_state.logged_in:
-    st.sidebar.title("🔐 Login")
-    usr = st.sidebar.text_input("Usuario")
-    pwd = st.sidebar.text_input("Contraseña", type="password")
-    if st.sidebar.button("Ingresar"):
-        if usr in users and users[usr]['pwd'] == pwd:
-            st.session_state.logged_in = True
-            st.session_state.user = usr
-            st.session_state.role = users[usr]['role']
-        else:
-            st.sidebar.error("Credenciales inválidas")
-    st.stop()
 
 # --- Menú lateral ---
-base_sections = ["Registrar Lote","Consultar Stock","Inventario","Historial","Soluciones Stock","Recetas","Imprimir Etiquetas"]
-admin_sections = ["Bajas Inventario","Administrar Sistema"]
-sections_list = base_sections + (admin_sections if st.session_state.role == 'admin' else [])
-choice = st.sidebar.selectbox("Menú", sections_list)
+st.sidebar.title("🧭 Menú")
+choice = st.sidebar.radio("Selecciona una sección:", [
+    "Registrar Lote",
+    "Consultar Stock",
+    "Inventario",
+    "Historial",
+    "Soluciones Stock",
+    "Recetas de Medios",
+    "Imprimir Etiquetas"
+])
 
 # --- Cabecera ---
-col1, col2 = st.columns([1, 8])
+col1, col2 = st.columns([1,8])
 col1.image("logo_blackberry.png", width=60)
 col2.markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- Secciones (plantilla) ---
-def section_registrar():
+# --- Secciones ---
+if choice == "Registrar Lote":
     st.subheader("📝 Registrar Lote")
-    st.write("Implementar formulario aquí...")
-def section_consultar():
+    año = st.text_input("Año (ej. 2025)")
+    receta = st.selectbox("Receta", list(recipes.keys()))
+    solucion = st.text_input("Solución stock")
+    semana = st.number_input("Semana", min_value=1, max_value=52, step=1)
+    dia = st.number_input("Día", min_value=1, max_value=7, step=1)
+    prep = st.text_input("Número de preparación")
+    frascos = st.number_input("Cantidad de frascos", min_value=1, max_value=500, step=1)
+    ph_aj = st.number_input("pH ajustado", step=0.1, format="%.1f")
+    ph_fin = st.number_input("pH final", step=0.1, format="%.1f")
+    ce = st.number_input("CE final", step=0.01, format="%.2f")
+    if st.button("Registrar lote"):
+        code = f"{año}{receta}{solucion}{semana}{dia}{prep}"
+        fecha = date.today().isoformat()
+        row = {"Código":code, "Año":año, "Receta":receta, "Solución":solucion,
+               "Semana":semana, "Día":dia, "Preparación":prep, "Frascos":frascos,
+               "pH_Ajustado":ph_aj, "pH_Final":ph_fin, "CE_Final":ce, "Fecha":fecha}
+        inv_df.loc[len(inv_df)] = row
+        inv_df.to_csv(INV_FILE, index=False)
+        st.success("Lote registrado.")
+        info = [f"Código: {code}", f"Año: {año}", f"Receta: {receta}", f"Frascos: {frascos}",
+                f"pH ajustado: {ph_aj}", f"pH final: {ph_fin}", f"CE: {ce}"]
+        qr = make_qr(code)
+        label = make_label(info, qr)
+        st.image(label)
+        buf = BytesIO()
+        label.save(buf, format="PNG")
+        st.download_button("📥 Descargar etiqueta", buf.getvalue(), file_name=f"etiqueta_{code}.png")
+
+elif choice == "Consultar Stock":
     st.subheader("🔍 Consultar Stock")
-    st.write(inv_df)
-def section_inventario():
+    st.dataframe(inv_df)
+
+elif choice == "Inventario":
     st.subheader("📋 Inventario Actual")
-    st.write(inv_df)
-def section_historial():
-    st.subheader("📜 Historial")
-    st.write(inv_df)
-def section_soluciones():
-    st.subheader("🧪 Soluciones Stock")
-    st.write(sol_df)
-def section_recetas():
-    st.subheader("📖 Recetas")
+    st.dataframe(inv_df)
+
+elif choice == "Historial":
+    st.subheader("📜 Historial de Lotes")
+    st.dataframe(inv_df)
+
+elif choice == "Soluciones Stock":
+    st.subheader("🧪 Registro de Soluciones Stock")
+    fecha = st.date_input("Fecha", date.today())
+    cantidad = st.text_input("Cantidad pesada")
+    cod_s = st.text_input("Código solución stock")
+    responsable = st.text_input("Responsable")
+    regulador = st.text_input("Tipo de regulador de crecimiento")
+    obs = st.text_area("Observaciones")
+    if st.button("Registrar solución"):
+        row = {"Fecha": fecha, "Cantidad": cantidad, "Código_Solución": cod_s,
+               "Responsable": responsable, "Regulador": regulador, "Observaciones": obs}
+        sol_df.loc[len(sol_df)] = row
+        sol_df.to_csv(SOL_FILE, index=False)
+        st.success("Solución registrada.")
+        info = [f"Código: {cod_s}", f"Fecha: {fecha.isoformat()}", f"Cantidad: {cantidad}",
+                f"Responsable: {responsable}", f"Regulador: {regulador}"]
+        qr2 = make_qr(cod_s)
+        label2 = make_label(info, qr2)
+        st.image(label2)
+        buf2 = BytesIO()
+        label2.save(buf2, format="PNG")
+        st.download_button("📥 Descargar etiqueta Stock", buf2.getvalue(), file_name=f"etq_stock_{cod_s}.png")
+
+elif choice == "Recetas de Medios":
+    st.subheader("📖 Recetas de Medios de Cultivo")
     receta = st.selectbox("Selecciona receta", list(recipes.keys()))
     if receta:
         st.dataframe(recipes[receta])
-def section_imprimir():
+
+elif choice == "Imprimir Etiquetas":
     st.subheader("🖨️ Imprimir Etiquetas")
-    st.write("Funcionalidad de impresión...")
-def section_bajas():
-    st.subheader("⚠️ Bajas Inventario")
-    st.write("Form para dar de baja...")
-def section_admin():
-    st.subheader("⚙️ Administración del Sistema")
-    st.write(f"Usuario: {st.session_state.user} (rol: {st.session_state.role})")
-    st.markdown("---")
-    st.subheader("👥 Gestión de Usuarios")
-    st.write(users)
-    new_u = st.text_input("Nuevo usuario")
-    new_p = st.text_input("Contraseña", type="password")
-    new_r = st.selectbox("Rol", ["user","admin"])
-    if st.button("Agregar usuario"):
-        users[new_u] = {"pwd": new_p, "role": new_r}
-        save_users(users)
-        st.experimental_rerun()
-    to_del = st.multiselect("Eliminar usuario", [u for u in users if u != st.session_state.user])
-    if st.button("Eliminar usuario"):
-        for u in to_del: users.pop(u, None)
-        save_users(users)
-        st.experimental_rerun()
+    codes = inv_df["Código"].tolist()
+    sel = st.multiselect("Selecciona lotes para imprimir", codes)
+    if st.button("Generar PDF etiquetas"):
+        st.warning("Función PDF no implementada aún.")
 
-# --- Dispatcher ---
-dispatch = {
-    "Registrar Lote": section_registrar,
-    "Consultar Stock": section_consultar,
-    "Inventario": section_inventario,
-    "Historial": section_historial,
-    "Soluciones Stock": section_soluciones,
-    "Recetas": section_recetas,
-    "Imprimir Etiquetas": section_imprimir,
-    "Bajas Inventario": section_bajas,
-    "Administrar Sistema": section_admin
-}
-dispatch.get(choice, lambda: st.write("Sección no implementada."))()
+else:
+    st.write("Sección no implementada.")
 
-# --- Footer ---
-footer = "**Usuario**: {}  \n**Rol**: {}".format(st.session_state.user, st.session_state.role)
-st.sidebar.markdown(footer)
+# --- Botón Descarga Inventario y Soluciones ---
+st.sidebar.markdown("---")
+st.sidebar.download_button("📥 Descargar Inventario Excel", to_excel_bytes(inv_df), file_name="inventario.xlsx")
+st.sidebar.download_button("📥 Descargar Soluciones Excel", to_excel_bytes(sol_df), file_name="soluciones.xlsx")
