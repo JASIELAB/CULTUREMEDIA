@@ -31,10 +31,14 @@ if os.path.exists(INV_FILE):
     inv_df = pd.read_csv(INV_FILE)
     if 'Fecha_Registro' in inv_df.columns:
         inv_df.rename(columns={'Fecha_Registro':'Fecha'}, inplace=True)
+    # Asegurar columnas correctas
+    inv_df = inv_df.reindex(columns=inv_cols)
+else:
+    inv_df = pd.DataFrame(columns=inv_cols)
 else:
     inv_df = pd.DataFrame(columns=inv_cols)
 
-sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Observaciones"]
+sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
 if os.path.exists(SOL_FILE):
     sol_df = pd.read_csv(SOL_FILE)
 else:
@@ -83,7 +87,8 @@ with st.sidebar:
 cols = st.columns([1,6,1])
 cols[0].image("logo_blackberry.png", width=60)
 cols[1].markdown("<h1 style='text-align:center;'>🌱 Control de Medios de Cultivo InVitro</h1>", unsafe_allow_html=True)
-st.markdown("---")
+cols[2].image("logo_plantainvitro.png", width=80)
+st.markdown("---")("---")
 
 # --- Sección Registrar Lote ---
 if choice == "Registrar Lote":
@@ -148,6 +153,29 @@ elif choice == "Historial":
 # --- Sección Soluciones Stock ---
 elif choice == "Soluciones Stock":
     st.subheader("🧪 Soluciones Stock")
+    fdate = st.date_input("Fecha preparación", value=date.today())
+    qty = st.text_input("Cantidad (g/mL)")
+    code_s = st.text_input("Código solución")
+    who = st.text_input("Responsable")
+    regulador = st.text_input("Tipo de regulador de crecimiento")
+    obs2 = st.text_area("Observaciones")
+    if st.button("Registrar solución", key='reg_sol'):
+        sol_df.loc[len(sol_df)] = [fdate.strftime("%Y-%m-%d"), qty, code_s, who, regulador, obs2]
+        sol_df.to_csv(SOL_FILE, index=False)
+        st.success("Solución registrada.")
+        info2 = [
+            f"Código: {code_s}",
+            f"Fecha: {fdate.strftime('%Y-%m-%d')}",
+            f"Cantidad: {qty}",
+            f"Responsable: {who}",
+            f"Regulador: {regulador}"
+        ]
+        qr2 = make_qr("
+".join(info2))
+        st.image(qr2, width=200)
+        st.download_button("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")
+    st.markdown("---")
+    st.subheader("📋 Registro de soluciones stock")("🧪 Soluciones Stock")
     fdate = st.date_input("Fecha preparación", value=date.today())
     qty = st.text_input("Cantidad (g/mL)")
     code_s = st.text_input("Código solución")
