@@ -191,7 +191,7 @@ elif choice == "Soluciones Stock":
         qr2 = make_qr("
 ".join(info2))
         st.image(qr2, width=200)
-        st.download_button("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")
+        st.download_button("⬇️ Descargar etiqueta PNG", data=qr2, file_name=f"sol_{code_s}.png", mime="image/png")
     st.markdown("---")
     st.subheader("📋 Registro de soluciones stock")
     del_sol = st.multiselect("Eliminar solución(es):", sol_df['Código_Solución'].dropna().tolist())
@@ -206,8 +206,7 @@ elif choice == "Soluciones Stock":
         file_name="soluciones.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-# --- Sección Recetas ---
+# --- Sección Recetas ---# --- Sección Recetas ---
 elif choice == "Recetas":
     st.subheader("📖 Recetas de Medios")
     if not recipes:
