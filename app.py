@@ -39,9 +39,10 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
         font = ImageFont.load_default()
     y = 5
     for line in info_lines:
+        # Draw text line by line
         draw.text((5, y), line, fill="black", font=font)
-        # calcular altura de texto para espaciar
-        text_height = draw.textsize(line, font=font)[1]
+        # Calcular altura de texto para espaciar correctamente
+        _, text_height = font.getsize(line)
         y += text_height + 2
     qr_img = Image.open(qr_buf).resize((80, 80))
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
@@ -93,7 +94,7 @@ for idx, (label, icon) in enumerate(menu):
 choice = st.session_state.choice
 st.markdown("---")
 
-# --- Secciones ---
+# --- Sections ---
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     año = st.number_input("Año", 2000, 2100, value=date.today().year)
@@ -116,11 +117,9 @@ if choice == "Registrar Lote":
 elif choice == "Consultar Stock":
     st.header("📦 Consultar Stock")
     st.dataframe(inv_df, use_container_width=True)
-    # Descarga de inventario
     csv_inv = inv_df.to_csv(index=False).encode('utf-8')
     st.download_button("Descargar Inventario (CSV)", csv_inv,
                        file_name="inventario_medios.csv", mime="text/csv")
-    # Excel
     buffer_inv = BytesIO()
     with pd.ExcelWriter(buffer_inv, engine='openpyxl') as writer:
         inv_df.to_excel(writer, index=False, sheet_name='Inventario')
@@ -164,7 +163,6 @@ elif choice == "Baja Inventario":
 
 elif choice == "Soluciones Stock":
     st.header("🧪 Soluciones Stock")
-    # Formulario de registro
     col1, col2 = st.columns(2)
     with col1:
         f2 = st.date_input("Fecha")
@@ -178,7 +176,6 @@ elif choice == "Soluciones Stock":
         sol_df.loc[len(sol_df)] = [f2.isoformat(), cant2, code_s, resp, reg, obs]
         sol_df.to_csv(SOL_FILE, index=False)
         st.success("Solución registrada.")
-    # Mostrar tabla de soluciones
     st.markdown("---")
     st.subheader("Stock de Soluciones Registradas")
     st.dataframe(sol_df, use_container_width=True)
