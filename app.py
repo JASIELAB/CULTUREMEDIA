@@ -57,12 +57,13 @@ REC_FILE  = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
 inv_cols  = [
     "Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
-    "Frascos","pH_Ajustado","pH_Final","CE_Final",
+    "frascros","pH_Ajustado","pH_Final","CE_Final",
     "Litros_preparar","Dosificar_por_frasco","Fecha"
 ]
 sol_cols  = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
 hist_cols = ["Timestamp","Tipo","Código","Cantidad","Detalles"]
 
+# Carga o inicializa DataFrames
 def load_df(path, cols):
     if os.path.exists(path):
         df = pd.read_csv(path)
@@ -121,7 +122,7 @@ if choice == "Registrar Lote":
     ph_fin   = st.number_input("pH final", 0.0, 14.0, format="%.1f")
     ce       = st.number_input("CE final", 0.0, 20.0, format="%.2f")
     litros   = st.number_input("Litros a preparar", 0.0, 100.0, value=1.0, format="%.2f")
-    dosif    = st.number_input("Dosificar por frascro", 0.0, 10.0, value=0.0, format="%.2f")
+    dosif    = st.number_input("Dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f")
     if st.button("Registrar lote"):
         code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
         inv_df.loc[len(inv_df)] = [
@@ -192,7 +193,7 @@ elif choice == "Baja Inventario":
     else:
         tipo_merma = None
 
-    if st.button("Aplicar baja"):
+    if st.button("Aplicar baja"): 
         detalles = f"Cantidad de frascros: {cantidad}"
         if tipo_merma:
             detalles += f"; Tipo de merma: {tipo_merma}"
@@ -204,18 +205,16 @@ elif choice == "Baja Inventario":
             detalles
         ]
         mov_df.to_csv(HIST_FILE, index=False)
-
         if sel in inv_df['Código'].values:
             idx = inv_df[inv_df['Código'] == sel].index[0]
-            cur = int(inv_df.at[idx, "Frascros"])
-            inv_df.at[idx, "Frascros"] = max(0, cur - cantidad)
+            cur = int(inv_df.at[idx, "frascros"])
+            inv_df.at[idx, "frascros"] = max(0, cur - cantidad)
             inv_df.to_csv(INV_FILE, index=False)
         else:
             idx = sol_df[sol_df['Código_Solución'] == sel].index[0]
             cur = float(sol_df.at[idx, "Cantidad"])
             sol_df.at[idx, "Cantidad"] = max(0, cur - cantidad)
             sol_df.to_csv(SOL_FILE, index=False)
-
         st.success(f"{motivo} aplicado a {sel}.")
 
 # --- Retorno de Medio Nutritivo ---
@@ -225,8 +224,8 @@ elif choice == "Retorno Medio Nutritivo":
     cant_retor = st.number_input("Cantidad de frascros a retornar", 1, 999, value=1)
     if st.button("Aplicar retorno"):
         idx = inv_df[inv_df['Código'] == sel].index[0]
-        cur = int(inv_df.at[idx, "Frascros"])
-        inv_df.at[idx, "Frascros"] = cur + cant_retor
+        cur = int(inv_df.at[idx, "frascros"])
+        inv_df.at[idx, "frascros"] = cur + cant_retor
         inv_df.to_csv(INV_FILE, index=False)
         mov_df.loc[len(mov_df)] = [
             datetime.now().isoformat(), "Retorno", sel, cant_retor, ""
@@ -286,9 +285,9 @@ elif choice == "Imprimir Etiquetas":
         if st.button("Generar etiqueta"):
             row = inv_df[inv_df["Código"] == cod_imp].iloc[0]
             info = [
-                f"Código: {row['Código']}",
-                f"Receta: {row['Receta']}",
-                f"Solución: {row['Solución']}",
+                f"Código: {row['Código']}" ,
+                f"Receta: {row['Receta']}" ,
+                f"Solución: {row['Solución']}" ,
                 f"Fecha: {row['Fecha']}"
             ]
             buf     = make_qr(cod_imp)
@@ -303,5 +302,3 @@ elif choice == "Imprimir Etiquetas":
                 file_name=f"etiqueta_{cod_imp}.pdf",
                 mime="application/pdf"
             )
-    else:
-        st.info("No hay lotes registrados aún.")
