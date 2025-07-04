@@ -83,6 +83,7 @@ menu = [
     ("Inventario Completo", "🔍"),
     ("Incubación", "⏱"),
     ("Baja Inventario", "⚠️"),
+    ("Retorno Medio Nutritivo", "🔄"),
     ("Soluciones Stock", "🧪"),
     ("Recetas de Medios", "📖"),
     ("Imprimir Etiquetas", "🖨"),
@@ -156,28 +157,42 @@ elif choice == "Baja Inventario":
     cantidad_frascos = st.number_input("Cantidad de frascos a dar de baja", min_value=1, value=1)
     if motivo == "Merma":
         tipo_merma = st.selectbox("Tipo de Merma", [
-            "Contaminación", 
-            "Ruptura", 
-            "Evaporación", 
-            "Falla eléctrica", 
-            "Interrupción del suministro de agua", 
+            "Contaminación",
+            "Ruptura",
+            "Evaporación",
+            "Falla eléctrica",
+            "Interrupción del suministro de agua",
             "Otro"
         ])
     if st.button("Aplicar baja"):
-        if sel in inv_df['Código']:
+        # Ajustar inventario según consumo o merma
+        if sel in inv_df['Código'].tolist():
             inv_df.loc[inv_df['Código'] == sel, 'Frascos'] -= cantidad_frascos
             if inv_df.loc[inv_df['Código'] == sel, 'Frascos'].values[0] <= 0:
                 inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
             inv_df.to_csv(INV_FILE, index=False)
         else:
-            sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'] = sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'].astype(int) - cantidad_frascos
+            sol_df['Cantidad'] = sol_df['Cantidad'].astype(int)
+            sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'] -= cantidad_frascos
             if sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'].values[0] <= 0:
                 sol_df.drop(sol_df[sol_df['Código_Solución'] == sel].index, inplace=True)
             sol_df.to_csv(SOL_FILE, index=False)
+        # Mensaje de éxito
         if motivo == "Consumo":
             st.success(f"{cantidad_frascos} frascos dados de baja por Consumo.")
         else:
-            st.success(f"{cantidad_frascos} frascros dados de baja por Merma ({tipo_merma}).")
+            st.success(f"{cantidad_frascos} frascos dados de baja por Merma ({tipo_merma}).")
+
+elif choice == "Retorno Medio Nutritivo":
+    st.header("🔄 Retorno de Medio Nutritivo")
+    códigos = inv_df['Código'].tolist()
+    sel = st.selectbox("Selecciona código", códigos)
+    fecha_ret = st.date_input("Fecha de retorno")
+    cantidad_retorno = st.number_input("Cantidad de frascos a retornar", min_value=1, value=1)
+    if st.button("Aplicar retorno"):
+        inv_df.loc[inv_df['Código'] == sel, 'Frascos'] += cantidad_retorno
+        inv_df.to_csv(INV_FILE, index=False)
+        st.success(f"{cantidad_retorno} frascos retornados al inventario.")
 
 elif choice == "Soluciones Stock":
     st.header("🧪 Soluciones Stock")
