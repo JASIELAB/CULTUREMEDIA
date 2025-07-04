@@ -57,7 +57,7 @@ REC_FILE  = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
 inv_cols  = [
     "Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
-    "frascros","pH_Ajustado","pH_Final","CE_Final",
+    "frascos","pH_Ajustado","pH_Final","CE_Final",
     "Litros_preparar","Dosificar_por_frasco","Fecha"
 ]
 sol_cols  = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
@@ -117,7 +117,7 @@ if choice == "Registrar Lote":
     semana   = st.number_input("Semana", 1, 52, value=int(datetime.today().strftime('%U')))
     dia      = st.number_input("Día", 1, 7, value=datetime.today().isoweekday())
     prep     = st.number_input("Preparación #", 1, 100)
-    frascros = st.number_input("Cantidad de frascros", 1, 999, value=1)
+    frascos  = st.number_input("Cantidad de frascos", 1, 999, value=1)
     ph_aj    = st.number_input("pH ajustado", 0.0, 14.0, format="%.1f")
     ph_fin   = st.number_input("pH final", 0.0, 14.0, format="%.1f")
     ce       = st.number_input("CE final", 0.0, 20.0, format="%.2f")
@@ -127,11 +127,11 @@ if choice == "Registrar Lote":
         code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
         inv_df.loc[len(inv_df)] = [
             code, year, receta, solucion, equipo, semana, dia, prep,
-            frascros, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()
+            frascos, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()
         ]
         inv_df.to_csv(INV_FILE, index=False)
         mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(), "Entrada", code, frascros, f"Equipo: {equipo}"
+            datetime.now().isoformat(), "Entrada", code, frascos, f"Equipo: {equipo}"
         ]
         mov_df.to_csv(HIST_FILE, index=False)
         st.success(f"Lote {code} registrado.")
@@ -182,7 +182,7 @@ elif choice == "Baja Inventario":
     motivo   = st.radio("Motivo", ["Consumo","Merma"])
     codigos  = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
     sel      = st.selectbox("Selecciona código", codigos)
-    cantidad = st.number_input("Cantidad de frascros a dar de baja", 1, 999, value=1)
+    cantidad = st.number_input("Cantidad de frascos a dar de baja", 1, 999, value=1)
 
     if motivo == "Merma":
         tipo_merma = st.selectbox(
@@ -209,96 +209,4 @@ elif choice == "Baja Inventario":
             idx = inv_df[inv_df['Código'] == sel].index[0]
             cur = int(inv_df.at[idx, "frascros"])
             inv_df.at[idx, "frascros"] = max(0, cur - cantidad)
-            inv_df.to_csv(INV_FILE, index=False)
-        else:
-            idx = sol_df[sol_df['Código_Solución'] == sel].index[0]
-            cur = float(sol_df.at[idx, "Cantidad"])
-            sol_df.at[idx, "Cantidad"] = max(0, cur - cantidad)
-            sol_df.to_csv(SOL_FILE, index=False)
-        st.success(f"{motivo} aplicado a {sel}.")
-
-# --- Retorno de Medio Nutritivo ---
-elif choice == "Retorno Medio Nutritivo":
-    st.header("🔄 Retorno Medio Nutritivo")
-    sel        = st.selectbox("Selecciona lote", inv_df['Código'].tolist())
-    cant_retor = st.number_input("Cantidad de frascros a retornar", 1, 999, value=1)
-    if st.button("Aplicar retorno"):
-        idx = inv_df[inv_df['Código'] == sel].index[0]
-        cur = int(inv_df.at[idx, "frascros"])
-        inv_df.at[idx, "frascros"] = cur + cant_retor
-        inv_df.to_csv(INV_FILE, index=False)
-        mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(), "Retorno", sel, cant_retor, ""
-        ]
-        mov_df.to_csv(HIST_FILE, index=False)
-        st.success(f"Retorno de {cant_retor} frascros para {sel} aplicado.")
-
-# --- Soluciones Stock ---
-elif choice == "Soluciones Stock":
-    st.header("🧪 Gestionar Soluciones Stock")
-    col1, col2 = st.columns(2)
-    with col1:
-        fecha_sol    = st.date_input("Fecha", value=date.today())
-        cantidad_sol = st.number_input("Cantidad (L)", min_value=0.0, format="%.2f")
-        codigo_sol   = st.text_input("Código Solución")
-    with col2:
-        responsable   = st.text_input("Responsable")
-        regulador     = st.text_input("Regulador")
-        observaciones = st.text_area("Observaciones")
-    if st.button("Registrar solución"):
-        sol_df.loc[len(sol_df)] = [
-            fecha_sol.isoformat(), cantidad_sol, codigo_sol,
-            responsable, regulador, observaciones
-        ]
-        sol_df.to_csv(SOL_FILE, index=False)
-        mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(), "Stock Solución",
-            codigo_sol, cantidad_sol, f"Resp: {responsable}"
-        ]
-        mov_df.to_csv(HIST_FILE, index=False)
-        st.success(f"Solución {codigo_sol} registrada.")
-
-    st.markdown("---")
-    st.subheader("📋 Inventario de Soluciones")
-    st.dataframe(sol_df, use_container_width=True)
-    st.download_button(
-        "Descargar Soluciones (CSV)",
-        sol_df.to_csv(index=False).encode("utf-8"),
-        file_name="soluciones_stock.csv"
-    )
-
-# --- Recetas de Medios ---
-elif choice == "Recetas de Medios":
-    st.header("📖 Recetas de Medios")
-    if recipes:
-        for name, df in recipes.items():
-            st.subheader(name)
-            st.dataframe(df, use_container_width=True)
-    else:
-        st.info("No se encontró el archivo de recetas.")
-
-# --- Imprimir Etiquetas ---
-elif choice == "Imprimir Etiquetas":
-    st.header("🖨 Imprimir Etiquetas")
-    if not inv_df.empty:
-        cod_imp = st.selectbox("Selecciona lote", inv_df["Código"].tolist())
-        if st.button("Generar etiqueta"):
-            row = inv_df[inv_df["Código"] == cod_imp].iloc[0]
-            info = [
-                f"Código: {row['Código']}" ,
-                f"Receta: {row['Receta']}" ,
-                f"Solución: {row['Solución']}" ,
-                f"Fecha: {row['Fecha']}"
-            ]
-            buf     = make_qr(cod_imp)
-            label   = make_label(info, buf)
-            st.image(label)
-            pdf_buf = BytesIO()
-            label.convert("RGB").save(pdf_buf, format="PDF")
-            pdf_buf.seek(0)
-            st.download_button(
-                "Descargar etiqueta (PDF)",
-                pdf_buf,
-                file_name=f"etiqueta_{cod_imp}.pdf",
-                mime="application/pdf"
-            )
+            inv_df.to_csv(INVOK
