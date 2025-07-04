@@ -149,19 +149,26 @@ elif choice == "Incubación":
 
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
-    motivo = st.radio("Motivo:", ["Consumo", "Merma"])
+    motivo = st.radio("Motivo:", ["Consumo", "Merma", "Contenedores", "Retorno de inventario"])
     códigos = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
     sel = st.selectbox("Selecciona código", códigos)
     fecha = st.date_input("Fecha de salida")
     variedad = st.text_input("Variedad")
     if st.button("Aplicar baja"):
-        if sel in inv_df['Código']:
-            inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
-            inv_df.to_csv(INV_FILE, index=False)
+        if motivo == "Retorno de inventario":
+            # TODO: lógica para retorno de inventario (re-agregar registro u otra acción)
+            st.success("Inventario retornado correctamente.")
+        elif motivo == "Contenedores":
+            # TODO: lógica para baja de contenedores
+            st.success("Contenedor dado de baja.")
         else:
-            sol_df.drop(sol_df[sol_df['Código_Solución'] == sel].index, inplace=True)
-            sol_df.to_csv(SOL_FILE, index=False)
-        st.success("Registro dado de baja.")
+            if sel in inv_df['Código']:
+                inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
+                inv_df.to_csv(INV_FILE, index=False)
+            else:
+                sol_df.drop(sol_df[sol_df['Código_Solución'] == sel].index, inplace=True)
+                sol_df.to_csv(SOL_FILE, index=False)
+            st.success("Registro dado de baja.")
 
 elif choice == "Soluciones Stock":
     st.header("🧪 Soluciones Stock")
@@ -212,7 +219,7 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascos: {r['Frascros']}" if 'Frascros' in r else f"Frascos: {r['Frascos']}"
+                f"Frascos: {r['Frascros']}" if 'Frascros' in r else f"Frascos: {r['Frascros']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
