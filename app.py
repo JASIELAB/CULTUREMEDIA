@@ -28,7 +28,6 @@ def make_qr(text: str) -> BytesIO:
     buf.seek(0)
     return buf
 
-
 def make_label(info_lines, qr_buf, size=(250, 120)):
     w, h = size
     img = Image.new("RGB", (w, h), "white")
@@ -50,13 +49,11 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
 
-# --- Data Files ---
+# --- Files and Columns ---
 INV_FILE = "inventario_medios.csv"
 SOL_FILE = "soluciones_stock.csv"
 HIST_FILE = "movimientos.csv"
 REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
-
-# Column definitions
 inv_cols = [
     "Código", "Año", "Receta", "Solución", "Equipo", "Semana", "Día", "Preparación",
     "Frascros", "pH_Ajustado", "pH_Final", "CE_Final",
@@ -65,7 +62,7 @@ inv_cols = [
 sol_cols = ["Fecha", "Cantidad", "Código_Solución", "Responsable", "Regulador", "Observaciones"]
 hist_cols = ["Timestamp", "Tipo", "Código", "Cantidad", "Detalles"]
 
-# Load data or create empty
+# --- Load Data ---
 def load_df(path, cols):
     if os.path.exists(path):
         df = pd.read_csv(path)
@@ -80,7 +77,7 @@ inv_df = load_df(INV_FILE, inv_cols)
 sol_df = load_df(SOL_FILE, sol_cols)
 mov_df = load_df(HIST_FILE, hist_cols)
 
-# Cargar recetas desde Excel
+# --- Load Recipes ---
 recipes = {}
 if os.path.exists(REC_FILE):
     xls = pd.ExcelFile(REC_FILE)
@@ -91,13 +88,14 @@ if os.path.exists(REC_FILE):
             sub.columns = ["Componente", "Fórmula", "Concentración"]
             recipes[sheet] = sub
 
-# --- User Interface ---
+# --- UI ---
 st.title("Control de Medios de Cultivo InVitro")
 st.markdown("---")
 menu = [
     ("Registrar Lote", "📋"), ("Consultar Stock", "📦"), ("Inventario Completo", "🔍"),
     ("Incubación", "⏱"), ("Baja Inventario", "⚠️"), ("Retorno Medio Nutritivo", "🔄"),
     ("Soluciones Stock", "🧪"), ("Recetas de Medios", "📖"), ("Imprimir Etiquetas", "🖨"),
+    ("Control del Sistema", "⚙️")
 ]
 cols = st.columns(4)
 if 'choice' not in st.session_state:
@@ -126,10 +124,8 @@ if choice == "Registrar Lote":
     dosificar = st.number_input("Cantidad a dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f")
     if st.button("Registrar lote"):
         code = f"{str(año)[2:]}{receta[:2]}Z{semana:02d}{día}-{prep}"
-        inv_df.loc[len(inv_df)] = [
-            code, año, receta, solucion, equipo, semana, día, prep,
-            frascros, ph_aj, ph_fin, ce, litros, dosificar, date.today().isoformat()
-        ]
+        inv_df.loc[len(inv_df)] = [code, año, receta, solucion, equipo, semana, día, prep,
+                                    frascros, ph_aj, ph_fin, ce, litros, dosificar, date.today().isoformat()]
         inv_df.to_csv(INV_FILE, index=False)
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Entrada", code, frascros, f"Equipo: {equipo}"]
         mov_df.to_csv(HIST_FILE, index=False)
@@ -235,43 +231,3 @@ elif choice == "Soluciones Stock":
     st.download_button("Descargar Soluciones (CSV)", csv_sol, file_name="soluciones_stock.csv", mime="text/csv")
     buffer_sol = BytesIO()
     with pd.ExcelWriter(buffer_sol, engine='openpyxl') as writer:
-        sol_df.to_excel(writer, index=False, sheet_name='Soluciones')
-    buffer_sol.seek(0)
-    st.download_button("Descargar Soluciones (Excel)", buffer_sol, file_name="soluciones_stock.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-# --- Recetas de Medios ---
-elif choice == "Recetas de Medios":
-    st.header("📖 Recetas de Medios")
-    selr = st.selectbox("Receta", list(recipes.keys()))
-    st.dataframe(recipes[selr], use_container_width=True)
-
-# --- Imprimir Etiquetas ---
-elif choice == "Imprimir Etiquetas":
-    st.header("🖨 Imprimir Etiquetas")
-    opts = inv_df['Código'].tolist()
-    sels = st.multiselect("Selecciona lote(s)", opts)
-    if st.button("Generar etiquetas") and sels:
-        for code in sels:
-            r = inv_df[inv_df['Código'] == code].iloc[0]
-            info = [
-                f"Código: {code}",
-                f"Año: {r['Año']}",
-                f"Receta: {r['Receta']}",
-                f"Sol.: {r['Solución']}",
-                f"Equipo: {r['Equipo']}",
-                f"Sem: {r['Semana']}",
-                f"Día: {r['Día']}",
-                f"Prep: {r['Preparación']}",
-                f"Frascros: {r['Frascros']}",
-                f"Litros a preparar: {r['Litros_preparar']}",
-                f"Dosificar por frasco: {r['Dosificar_por_frasco']}"
-            ]
-            buf = make_qr(code)
-            lbl = make_label(info, buf)
-            st.image(lbl)
-            pdf_buf = BytesIO()
-            lbl_rgb = lbl.convert('RGB')
-            lbl_rgb.save(pdf_buf, format='PDF')
-            pdf_buf.seek(0)
-            st.download_button(f"Descargar PDF {code}", pdf_buf, file_name=f"{code}.pdf", mime='application/pdf')
-        st.info("Etiquetas generadas y listas para descargar.")
