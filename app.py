@@ -155,7 +155,14 @@ elif choice == "Baja Inventario":
     variedad = st.text_input("Variedad")
     cantidad_frascos = st.number_input("Cantidad de frascos a dar de baja", min_value=1, value=1)
     if motivo == "Merma":
-        tipo_merma = st.selectbox("Tipo de Merma", ["Contaminación", "Ruptura", "Evaporación", "Otro"])
+        tipo_merma = st.selectbox("Tipo de Merma", [
+            "Contaminación", 
+            "Ruptura", 
+            "Evaporación", 
+            "Falla eléctrica", 
+            "Interrupción del suministro de agua", 
+            "Otro"
+        ])
     if st.button("Aplicar baja"):
         if sel in inv_df['Código']:
             inv_df.loc[inv_df['Código'] == sel, 'Frascos'] -= cantidad_frascos
@@ -170,7 +177,7 @@ elif choice == "Baja Inventario":
         if motivo == "Consumo":
             st.success(f"{cantidad_frascos} frascos dados de baja por Consumo.")
         else:
-            st.success(f"{cantidad_frascos} frascos dados de baja por Merma ({tipo_merma}).")
+            st.success(f"{cantidad_frascos} frascros dados de baja por Merma ({tipo_merma}).")
 
 elif choice == "Soluciones Stock":
     st.header("🧪 Soluciones Stock")
