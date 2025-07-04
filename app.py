@@ -57,7 +57,11 @@ HIST_FILE = "movimientos.csv"
 REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
 # Column definitions
-inv_cols = ["Código", "Año", "Receta", "Solución", "Equipo", "Semana", "Día", "Preparación", "Frascos", "pH_Ajustado", "pH_Final", "CE_Final", "Fecha"]
+inv_cols = [
+    "Código", "Año", "Receta", "Solución", "Equipo", "Semana", "Día", "Preparación",
+    "Frascros", "pH_Ajustado", "pH_Final", "CE_Final",
+    "Litros_preparar", "Dosificar_por_frasco", "Fecha"
+]
 sol_cols = ["Fecha", "Cantidad", "Código_Solución", "Responsable", "Regulador", "Observaciones"]
 hist_cols = ["Timestamp", "Tipo", "Código", "Cantidad", "Detalles"]
 
@@ -90,17 +94,10 @@ if os.path.exists(REC_FILE):
 # --- User Interface ---
 st.title("Control de Medios de Cultivo InVitro")
 st.markdown("---")
-
 menu = [
-    ("Registrar Lote", "📋"),
-    ("Consultar Stock", "📦"),
-    ("Inventario Completo", "🔍"),
-    ("Incubación", "⏱"),
-    ("Baja Inventario", "⚠️"),
-    ("Retorno Medio Nutritivo", "🔄"),
-    ("Soluciones Stock", "🧪"),
-    ("Recetas de Medios", "📖"),
-    ("Imprimir Etiquetas", "🖨"),
+    ("Registrar Lote", "📋"), ("Consultar Stock", "📦"), ("Inventario Completo", "🔍"),
+    ("Incubación", "⏱"), ("Baja Inventario", "⚠️"), ("Retorno Medio Nutritivo", "🔄"),
+    ("Soluciones Stock", "🧪"), ("Recetas de Medios", "📖"), ("Imprimir Etiquetas", "🖨"),
 ]
 cols = st.columns(4)
 if 'choice' not in st.session_state:
@@ -125,9 +122,14 @@ if choice == "Registrar Lote":
     ph_aj = st.number_input("pH ajustado", 0.0, 14.0, format="%.1f")
     ph_fin = st.number_input("pH final", 0.0, 14.0, format="%.1f")
     ce = st.number_input("CE final", 0.0, 20.0, format="%.2f")
+    litros = st.number_input("Litros a preparar", 0.0, 100.0, value=1.0, format="%.2f")
+    dosificar = st.number_input("Cantidad a dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f")
     if st.button("Registrar lote"):
         code = f"{str(año)[2:]}{receta[:2]}Z{semana:02d}{día}-{prep}"
-        inv_df.loc[len(inv_df)] = [code, año, receta, solucion, equipo, semana, día, prep, frascros, ph_aj, ph_fin, ce, date.today().isoformat()]
+        inv_df.loc[len(inv_df)] = [
+            code, año, receta, solucion, equipo, semana, día, prep,
+            frascros, ph_aj, ph_fin, ce, litros, dosificar, date.today().isoformat()
+        ]
         inv_df.to_csv(INV_FILE, index=False)
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Entrada", code, frascros, f"Equipo: {equipo}"]
         mov_df.to_csv(HIST_FILE, index=False)
@@ -142,13 +144,15 @@ elif choice == "Consultar Stock":
 
 # --- Inventario Completo ---
 elif choice == "Inventario Completo":
-    st.header("🔍 Inventario Completo")
+    st.header("🔍 Inventario Completo”)
     st.dataframe(inv_df, use_container_width=True)
     st.markdown("---")
     st.subheader("📜 Histórico de Movimientos")
     st.dataframe(mov_df, use_container_width=True)
+    # CSV
     csv_mov = mov_df.to_csv(index=False).encode('utf-8')
     st.download_button("Descargar Histórico (CSV)", csv_mov, file_name="movimientos_stock.csv", mime="text/csv")
+    # Excel
     buffer_mov = BytesIO()
     with pd.ExcelWriter(buffer_mov, engine='openpyxl') as writer:
         mov_df.to_excel(writer, index=False, sheet_name='Movimientos')
@@ -177,41 +181,38 @@ elif choice == "Baja Inventario":
     sel = st.selectbox("Selecciona código", códigos)
     fecha = st.date_input("Fecha de salida")
     variedad = st.text_input("Variedad")
-    cantidad_frasros = st.number_input("Cantidad de frascros a dar de baja", min_value=1, value=1)
+    cantidad = st.number_input("Cantidad de frascros a dar de baja", min_value=1, value=1)
     if motivo == "Merma":
-        tipo_merma = st.selectbox("Tipo de Merma", ["Contaminación", "Ruptura", "Evaporación", "Falla eléctrica", "Interrupción del suministro de agua", "Otro"])
+        tipo = st.selectbox("Tipo de Merma", ["Contaminación", "Ruptura", "Evaporación", "Falla eléctrica", "Interrupción del suministro de agua", "Otro"])
     if st.button("Aplicar baja"):
-        if sel in inv_df['Código'].tolist():
-            inv_df.loc[inv_df['Código'] == sel, 'Frascros'] -= cantidad_frasros
+        if sel in inv_df['Código']:
+            inv_df.loc[inv_df['Código'] == sel, 'Frascros'] -= cantidad
             if inv_df.loc[inv_df['Código'] == sel, 'Frascros'].values[0] <= 0:
                 inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
             inv_df.to_csv(INV_FILE, index=False)
         else:
             sol_df['Cantidad'] = sol_df['Cantidad'].astype(int)
-            sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'] -= cantidad_frasros
+            sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'] -= cantidad
             if sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'].values[0] <= 0:
                 sol_df.drop(sol_df[sol_df['Código_Solución'] == sel].index, inplace=True)
             sol_df.to_csv(SOL_FILE, index=False)
-        detalle = f"{motivo}"
-        if motivo == "Merma":
-            detalle += f" ({tipo_merma})"
-        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Salida", sel, cantidad_frasros, detalle]
+        det = motivo + (f" ({tipo})" if motivo == "Merma" else "")
+        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Salida", sel, cantidad, det]
         mov_df.to_csv(HIST_FILE, index=False)
-        st.success(f"{cantidad_frasros} frascros dados de baja por {detalle}.")
+        st.success(f"{cantidad} frascros dados de baja por {det}.")
 
 # --- Retorno Medio Nutritivo ---
 elif choice == "Retorno Medio Nutritivo":
     st.header("🔄 Retorno de Medio Nutritivo")
     códigos = inv_df['Código'].tolist()
     sel = st.selectbox("Selecciona código", códigos)
-    fecha_ret = st.date_input("Fecha de retorno")
-    cantidad_retorno = st.number_input("Cantidad de frascros a retornar", min_value=1, value=1)
+    cantidad_ret = st.number_input("Cantidad de frascros a retornar", min_value=1, value=1)
     if st.button("Aplicar retorno"):
-        inv_df.loc[inv_df['Código'] == sel, 'Frascros'] += cantidad_retorno
+        inv_df.loc[inv_df['Código'] == sel, 'Frascros'] += cantidad_ret
         inv_df.to_csv(INV_FILE, index=False)
-        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Retorno", sel, cantidad_retorno, ""]
+        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Retorno", sel, cantidad_ret, ""]
         mov_df.to_csv(HIST_FILE, index=False)
-        st.success(f"{cantidad_retorno} frascros retornados al inventario.")
+        st.success(f"{cantidad_ret} frascros retornados al inventario.")
 
 # --- Soluciones Stock ---
 elif choice == "Soluciones Stock":
@@ -263,7 +264,9 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascros: {r['Frascros']}" if 'Frascros' in r else f"Frascros: {r['Frascros']}"
+                f"Frascros: {r['Frascros']}",
+                f"Litros a preparar: {r['Litros_preparar']}",
+                f"Dosificar por frasco: {r['Dosificar_por_frasco']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
