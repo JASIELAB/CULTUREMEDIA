@@ -165,7 +165,6 @@ elif choice == "Baja Inventario":
             "Otro"
         ])
     if st.button("Aplicar baja"):
-        # Ajustar inventario según consumo o merma
         if sel in inv_df['Código'].tolist():
             inv_df.loc[inv_df['Código'] == sel, 'Frascos'] -= cantidad_frascos
             if inv_df.loc[inv_df['Código'] == sel, 'Frascos'].values[0] <= 0:
@@ -177,7 +176,6 @@ elif choice == "Baja Inventario":
             if sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'].values[0] <= 0:
                 sol_df.drop(sol_df[sol_df['Código_Solución'] == sel].index, inplace=True)
             sol_df.to_csv(SOL_FILE, index=False)
-        # Mensaje de éxito
         if motivo == "Consumo":
             st.success(f"{cantidad_frascos} frascos dados de baja por Consumo.")
         else:
@@ -243,7 +241,7 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascos: {r['Frascros']}" if 'Frascros' in r else f"Frascros: {r['Frascros']}"
+                f"Frascos: {r['Frascos']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
