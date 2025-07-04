@@ -63,15 +63,14 @@ inv_cols = [
 sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
 hist_cols = ["Timestamp","Tipo","Código","Cantidad","Detalles"]
 
+# --- Carga de DataFrames ---
+import pandas as pd
+
 def load_df(path, cols):
     if os.path.exists(path):
-        df = pd.read_csv(path)
+        return pd.read_csv(path, dtype=str)[cols]
     else:
-        df = pd.DataFrame(columns=cols)
-    for c in cols:
-        if c not in df.columns:
-            df[c] = ''
-    return df[cols]
+        return pd.DataFrame(columns=cols)
 
 inv_df = load_df(INV_FILE, inv_cols)
 sol_df = load_df(SOL_FILE, sol_cols)
@@ -95,7 +94,7 @@ st.markdown("---")
 menu = [
     ("Registrar Lote","📋"),("Consultar Stock","📦"),("Inventario Completo","🔍"),
     ("Incubación","⏱"),("Baja Inventario","⚠️"),("Retorno Medio Nutritivo","🔄"),
-    ("Soluciones Stock","🧪"),("Recetas de Medios","📖"),("Imprimir Etiquetas","🖨")
+    ("Soluciones Stock","🧪"),("Stock Reactivos","🔬"),("Recetas de Medios","📖"),("Imprimir Etiquetas","🖨")
 ]
 cols = st.columns(4)
 if 'choice' not in st.session_state:
@@ -105,6 +104,16 @@ for i, (lbl, icn) in enumerate(menu):
         st.session_state.choice = lbl
 choice = st.session_state.choice
 st.markdown("---")
+
+# --- Funciones comunes para guardar ---
+def save_inventory():
+    inv_df.to_csv(INV_FILE, index=False)
+
+def save_solutions():
+    sol_df.to_csv(SOL_FILE, index=False)
+
+def save_history():
+    mov_df.to_csv(HIST_FILE, index=False)
 
 # --- Registrar Lote ---
 if choice == "Registrar Lote":
@@ -124,26 +133,18 @@ if choice == "Registrar Lote":
     dosif = st.number_input("Dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f")
     if st.button("Registrar lote"):
         code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
-        inv_df.loc[len(inv_df)] = [
-            code, year, receta, solucion, equipo, semana, dia, prep,
-            frascos, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()
-        ]
-        inv_df.to_csv(INV_FILE, index=False)
-        mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(), "Entrada", code, frascos, f"Equipo: {equipo}"
-        ]
-        mov_df.to_csv(HIST_FILE, index=False)
+        inv_df.loc[len(inv_df)] = [code, year, receta, solucion, equipo, semana, dia, prep,
+                                   frascos, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()]
+        save_inventory()
+        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Entrada", code, frascos, f"Equipo: {equipo}"]
+        save_history()
         st.success(f"Lote {code} registrado.")
 
 # --- Consultar Stock ---
 elif choice == "Consultar Stock":
     st.header("📦 Consultar Stock")
     st.dataframe(inv_df, use_container_width=True)
-    st.download_button(
-        "Descargar Inventario (CSV)",
-        inv_df.to_csv(index=False).encode("utf-8"),
-        file_name="inventario_medios.csv"
-    )
+    st.download_button("Descargar Inventario (CSV)", inv_df.to_csv(index=False).encode("utf-8"), file_name="inventario_medios.csv")
 
 # --- Inventario Completo ---
 elif choice == "Inventario Completo":
@@ -156,115 +157,89 @@ elif choice == "Inventario Completo":
 # --- Incubación ---
 elif choice == "Incubación":
     st.header("⏱ Incubación")
-    df = inv_df.copy()
-    df["Fecha"] = pd.to_datetime(df["Fecha"])
-    df["Días incubación"] = (pd.to_datetime(date.today()) - df["Fecha"]).dt.days
-
+    df_inc = inv_df.copy()
+    df_inc["Fecha"] = pd.to_datetime(df_inc["Fecha"])
+    df_inc["Días incubación"] = (pd.to_datetime(date.today()) - df_inc["Fecha"]).dt.days
     def highlight_row(row):
-        days = row["Días incubación"]
-        if days < 6:
+        d = row["Días incubación"]
+        if d < 6:
             return ["background-color: yellow"] * len(row)
-        elif days <= 28:
+        elif d <= 28:
             return ["background-color: lightgreen"] * len(row)
         else:
             return ["background-color: red"] * len(row)
-
-    st.dataframe(
-        df.style.apply(highlight_row, axis=1)
-               .format({"Días incubación": "{:.0f}"}),
-        use_container_width=True
-    )
+    st.dataframe(df_inc.style.apply(highlight_row, axis=1).format({"Días incubación": "{:.0f}"}), use_container_width=True)
 
 # --- Baja Inventario ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
-    motivo = st.radio("Motivo", ["Consumo","Merma"] )
+    motivo = st.radio("Motivo", ["Consumo","Merma"])
     codigos = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
     sel = st.selectbox("Selecciona código", codigos)
     cantidad = st.number_input("Cantidad de frascos a dar de baja", 1, 999, value=1)
-
-    if motivo == "Merma":
-        tipo_merma = st.selectbox(
-            "Tipo de Merma",
-            ["Contaminación","Ruptura","Evaporación",
-             "Falla eléctrica","Interrupción del suministro de agua","Otro"]
-        )
-    else:
-        tipo_merma = None
-
-    if st.button("Aplicar baja"):  
-        detalles = f"Cantidad de frascos: {cantidad}"
-        if tipo_merma:
-            detalles += f"; Tipo de merma: {tipo_merma}"
-        mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(),
-            f"Baja {motivo}",
-            sel,
-            cantidad,
-            detalles
-        ]
-        mov_df.to_csv(HIST_FILE, index=False)
+    tipo_merma = st.selectbox("Tipo de Merma", ["","Consumo Normal","Contaminación","Ruptura","Evaporación","Falla eléctrica","Interrupción suministro agua","Otro"]) if motivo == "Merma" else ""
+    if st.button("Aplicar baja"):
+        det = f"Cantidad de frascos: {cantidad}"
+        if motivo == "Merma": det += f"; Tipo de merma: {tipo_merma}"
+        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), f"Baja {motivo}", sel, cantidad, det]
+        save_history()
         if sel in inv_df['Código'].values:
-            idx = inv_df[inv_df['Código'] == sel].index[0]
-            cur = int(inv_df.at[idx, "frascos"])
-            inv_df.at[idx, "frascos"] = max(0, cur - cantidad)
-            inv_df.to_csv(INV_FILE, index=False)
+            idx = inv_df[inv_df['Código']==sel].index[0]
+            inv_df.at[idx,'frascos'] = max(0, int(inv_df.at[idx,'frascos'])-cantidad)
+            save_inventory()
         else:
-            idx = sol_df[sol_df['Código_Solución'] == sel].index[0]
-            cur = float(sol_df.at[idx, "Cantidad"])
-            sol_df.at[idx, "Cantidad"] = max(0, cur - cantidad)
-            sol_df.to_csv(SOL_FILE, index=False)
+            idx = sol_df[sol_df['Código_Solución']==sel].index[0]
+            sol_df.at[idx,'Cantidad'] = max(0, float(sol_df.at[idx,'Cantidad'])-cantidad)
+            save_solutions()
         st.success(f"{motivo} aplicado a {sel}.")
 
-# --- Retorno de Medio Nutritivo ---
+# --- Retorno Medio Nutritivo ---
 elif choice == "Retorno Medio Nutritivo":
     st.header("🔄 Retorno Medio Nutritivo")
-    sel = st.selectbox("Selecciona lote", inv_df['Código'].tolist())
+    sel = st.selectbox("Selecciona lote", inv_df['Código'])
     cant_retor = st.number_input("Cantidad de frascos a retornar", 1, 999, value=1)
     if st.button("Aplicar retorno"):
-        idx = inv_df[inv_df['Código'] == sel].index[0]
-        cur = int(inv_df.at[idx, "frascos"])
-        inv_df.at[idx, "frascos"] = cur + cant_retor
-        inv_df.to_csv(INV_FILE, index=False)
-        mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(), "Retorno", sel, cant_retor, ""
-        ]
-        mov_df.to_csv(HIST_FILE, index=False)
-        st.success(f"Retorno de {cant_retor} frascros para {sel} aplicado.")
+        idx = inv_df[inv_df['Código']==sel].index[0]
+        inv_df.at[idx,'frascos'] = int(inv_df.at[idx,'frascos'])+cant_retor
+        save_inventory()
+        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Retorno", sel, cant_retor, ""]
+        save_history()
+        st.success(f"Retorno de {cant_retor} frascos para {sel} aplicado.")
 
 # --- Soluciones Stock ---
 elif choice == "Soluciones Stock":
     st.header("🧪 Gestionar Soluciones Stock")
-    col1, col2 = st.columns(2)
-    with col1:
-        fecha_sol = st.date_input("Fecha", value=date.today())
-        cantidad_sol = st.number_input("Cantidad (L)", min_value=0.0, format="%.2f")
+    c1, c2 = st.columns(2)
+    with c1:
+        fecha_sol = st.date_input("Fecha", date.today())
+        cantidad_sol = st.number_input("Cantidad (L)", 0.0, format="%.2f")
         codigo_sol = st.text_input("Código Solución")
-    with col2:
+    with c2:
         responsable = st.text_input("Responsable")
         regulador = st.text_input("Regulador")
         observaciones = st.text_area("Observaciones")
     if st.button("Registrar solución"):
-        sol_df.loc[len(sol_df)] = [
-            fecha_sol.isoformat(), cantidad_sol, codigo_sol,
-            responsable, regulador, observaciones
-        ]
-        sol_df.to_csv(SOL_FILE, index=False)
-        mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(), "Stock Solución",
-            codigo_sol, cantidad_sol, f"Resp: {responsable}"
-        ]
-        mov_df.to_csv(HIST_FILE, index=False)
+        sol_df.loc[len(sol_df)] = [fecha_sol.isoformat(), cantidad_sol, codigo_sol, responsable, regulador, observaciones]
+        save_solutions()
+        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Stock Solución", codigo_sol, cantidad_sol, f"Resp: {responsable}"]
+        save_history()
         st.success(f"Solución {codigo_sol} registrada.")
-
     st.markdown("---")
     st.subheader("📋 Inventario de Soluciones")
     st.dataframe(sol_df, use_container_width=True)
-    st.download_button(
-        "Descargar Soluciones (CSV)",
-        sol_df.to_csv(index=False).encode("utf-8"),
-        file_name="soluciones_stock.csv"
-    )
+    st.download_button("Descargar Soluciones (CSV)", sol_df.to_csv(index=False).encode("utf-8"), file_name="soluciones_stock.csv")
+
+# --- Stock Reactivos ---
+elif choice == "Stock Reactivos":
+    st.header("🔬 Stock de Reactivos")
+    url = st.text_input("URL del archivo Excel de reactivos en la nube")
+    if url:
+        try:
+            df_reac = pd.read_excel(url)
+            st.dataframe(df_reac, use_container_width=True)
+            st.success("Reactivos cargados correctamente.")
+        except Exception as e:
+            st.error(f"Error al cargar Excel: {e}")
 
 # --- Recetas de Medios ---
 elif choice == "Recetas de Medios":
@@ -280,23 +255,14 @@ elif choice == "Recetas de Medios":
 elif choice == "Imprimir Etiquetas":
     st.header("🖨 Imprimir Etiquetas")
     if not inv_df.empty:
-        cod_imp = st.selectbox("Selecciona lote", inv_df["Código"].tolist())
+        cod_imp = st.selectbox("Selecciona lote", inv_df['Código'])
         if st.button("Generar etiqueta"):
-            row = inv_df[inv_df["Código"] == cod_imp].iloc[0]
-            info = [
-                f"Código: {row['Código']}",
-                f"Receta: {row['Receta']}",
-                f"Solución: {row['Solución']}",
-                f"Fecha: {row['Fecha']}"
-            ]
+            row = inv_df[inv_df['Código']==cod_imp].iloc[0]
+            info = [f"Código: {row['Código']}", f"Receta: {row['Receta']}", f"Solución: {row['Solución']}", f"Fecha: {row['Fecha']}"]
             buf = make_qr(cod_imp)
             label = make_label(info, buf)
             st.image(label)
             pdf_buf = BytesIO()
             label.convert("RGB").save(pdf_buf, format="PDF")
             pdf_buf.seek(0)
-            st.download_button(
-                "Descargar etiqueta (PDF)", pdf_buf,
-                file_name=f"etiqueta_{cod_imp}.pdf",
-                mime="application/pdf"
-            )
+            st.download_button("Descargar etiqueta (PDF)", pdf_buf, file_name=f"etiqueta_{cod_imp}.pdf", mime="application/pdf")
