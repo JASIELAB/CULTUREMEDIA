@@ -55,10 +55,12 @@ INV_FILE = "inventario_medios.csv"
 SOL_FILE = "soluciones_stock.csv"
 REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
-inv_cols = ["Código", "Año", "Receta", "Solución", "Semana", "Día", "Preparación", 
+# Column definitions (added 'Equipo')
+inv_cols = ["Código", "Año", "Receta", "Solución", "Equipo", "Semana", "Día", "Preparación", 
             "Frascos", "pH_Ajustado", "pH_Final", "CE_Final", "Fecha"]
 sol_cols = ["Fecha", "Cantidad", "Código_Solución", "Responsable", "Regulador", "Observaciones"]
 
+# Load data or create empty
 inv_df = pd.read_csv(INV_FILE) if os.path.exists(INV_FILE) else pd.DataFrame(columns=inv_cols)
 sol_df = pd.read_csv(SOL_FILE) if os.path.exists(SOL_FILE) else pd.DataFrame(columns=sol_cols)
 
@@ -97,11 +99,13 @@ for idx, (label, icon) in enumerate(menu):
 choice = st.session_state.choice
 st.markdown("---")
 
+# --- Registrar Lote ---
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     año = st.number_input("Año", 2000, 2100, value=date.today().year)
     receta = st.selectbox("Receta", list(recipes.keys()))
     solucion = st.text_input("Solución stock")
+    equipo = st.selectbox("Equipo", ["Preparadora Alpha", "Preparadora Beta"])
     semana = st.number_input("Semana", 1, 52, value=int(datetime.today().strftime('%U')))
     día = st.number_input("Día", 1, 7, value=datetime.today().isoweekday())
     prep = st.number_input("Preparación #", 1, 100)
@@ -111,11 +115,12 @@ if choice == "Registrar Lote":
     ce = st.number_input("CE final", 0.0, 20.0, format="%.2f")
     if st.button("Registrar lote"):
         code = f"{str(año)[2:]}{receta[:2]}Z{semana:02d}{día}-{prep}"
-        inv_df.loc[len(inv_df)] = [code, año, receta, solucion, semana, día, prep,
+        inv_df.loc[len(inv_df)] = [code, año, receta, solucion, equipo, semana, día, prep,
                                    frascos, ph_aj, ph_fin, ce, date.today().isoformat()]
         inv_df.to_csv(INV_FILE, index=False)
         st.success(f"Lote {code} registrado.")
 
+# --- Consultar Stock ---
 elif choice == "Consultar Stock":
     st.header("📦 Consultar Stock")
     st.dataframe(inv_df, use_container_width=True)
@@ -130,10 +135,12 @@ elif choice == "Consultar Stock":
                        file_name="inventario_medios.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+# --- Inventario Completo ---
 elif choice == "Inventario Completo":
     st.header("🔍 Inventario Completo")
     st.dataframe(inv_df, use_container_width=True)
 
+# --- Incubación ---
 elif choice == "Incubación":
     st.header("⏱ Estado de incubación")
     df2 = inv_df.copy()
@@ -147,6 +154,7 @@ elif choice == "Incubación":
             return 'background-color:#FFF9C4'
     st.dataframe(df2.style.apply(lambda r: [color_row(r['Días'])]*len(r), axis=1), use_container_width=True)
 
+# --- Baja Inventario ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
     motivo = st.radio("Motivo:", ["Consumo", "Merma"])
@@ -157,30 +165,27 @@ elif choice == "Baja Inventario":
     cantidad_frascos = st.number_input("Cantidad de frascos a dar de baja", min_value=1, value=1)
     if motivo == "Merma":
         tipo_merma = st.selectbox("Tipo de Merma", [
-            "Contaminación",
-            "Ruptura",
-            "Evaporación",
-            "Falla eléctrica",
-            "Interrupción del suministro de agua",
-            "Otro"
+            "Contaminación", "Ruptura", "Evaporación", "Falla eléctrica", 
+            "Interrupción del suministro de agua", "Otro"
         ])
     if st.button("Aplicar baja"):
         if sel in inv_df['Código'].tolist():
-            inv_df.loc[inv_df['Código'] == sel, 'Frascos'] -= cantidad_frascos
-            if inv_df.loc[inv_df['Código'] == sel, 'Frascos'].values[0] <= 0:
-                inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
+            inv_df.loc[inv_df['Código']==sel, 'Frascos'] -= cantidad_frascos
+            if inv_df.loc[inv_df['Código']==sel, 'Frascos'].values[0] <= 0:
+                inv_df.drop(inv_df[inv_df['Código']==sel].index, inplace=True)
             inv_df.to_csv(INV_FILE, index=False)
         else:
             sol_df['Cantidad'] = sol_df['Cantidad'].astype(int)
-            sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'] -= cantidad_frascos
-            if sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'].values[0] <= 0:
-                sol_df.drop(sol_df[sol_df['Código_Solución'] == sel].index, inplace=True)
+            sol_df.loc[sol_df['Código_Solución']==sel, 'Cantidad'] -= cantidad_frascos
+            if sol_df.loc[sol_df['Código_Solución']==sel, 'Cantidad'].values[0] <= 0:
+                sol_df.drop(sol_df[sol_df['Código_Solución']==sel].index, inplace=True)
             sol_df.to_csv(SOL_FILE, index=False)
-        if motivo == "Consumo":
-            st.success(f"{cantidad_frascos} frascos dados de baja por Consumo.")
-        else:
-            st.success(f"{cantidad_frascos} frascos dados de baja por Merma ({tipo_merma}).")
+        message = f"{cantidad_frascos} frascos dados de baja por {motivo}"
+        if motivo == "Merma":
+            message += f" ({tipo_merma})"
+        st.success(message)
 
+# --- Retorno Medio Nutritivo ---
 elif choice == "Retorno Medio Nutritivo":
     st.header("🔄 Retorno de Medio Nutritivo")
     códigos = inv_df['Código'].tolist()
@@ -192,6 +197,7 @@ elif choice == "Retorno Medio Nutritivo":
         inv_df.to_csv(INV_FILE, index=False)
         st.success(f"{cantidad_retorno} frascos retornados al inventario.")
 
+# --- Soluciones Stock ---
 elif choice == "Soluciones Stock":
     st.header("🧪 Soluciones Stock")
     col1, col2 = st.columns(2)
@@ -221,11 +227,13 @@ elif choice == "Soluciones Stock":
                        file_name="soluciones_stock.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+# --- Recetas de Medios ---
 elif choice == "Recetas de Medios":
     st.header("📖 Recetas de Medios")
     selr = st.selectbox("Receta", list(recipes.keys()))
     st.dataframe(recipes[selr], use_container_width=True)
 
+# --- Imprimir Etiquetas ---
 elif choice == "Imprimir Etiquetas":
     st.header("🖨 Imprimir Etiquetas")
     opts = inv_df['Código'].tolist()
@@ -238,10 +246,11 @@ elif choice == "Imprimir Etiquetas":
                 f"Año: {r['Año']}",
                 f"Receta: {r['Receta']}",
                 f"Sol.: {r['Solución']}",
+                f"Equipo: {r['Equipo']}",
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascos: {r['Frascos']}"
+                f"Frascos: {r['Frascros'] if 'Frascros' in r else r['Frascros']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
