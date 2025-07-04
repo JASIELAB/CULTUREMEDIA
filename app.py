@@ -57,7 +57,7 @@ REC_FILE  = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
 inv_cols  = [
     "Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
-    "Frascros","pH_Ajustado","pH_Final","CE_Final",
+    "Frascos","pH_Ajustado","pH_Final","CE_Final",
     "Litros_preparar","Dosificar_por_frasco","Fecha"
 ]
 sol_cols  = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
@@ -95,8 +95,7 @@ st.markdown("---")
 menu = [
     ("Registrar Lote","📋"),("Consultar Stock","📦"),("Inventario Completo","🔍"),
     ("Incubación","⏱"),("Baja Inventario","⚠️"),("Retorno Medio Nutritivo","🔄"),
-    ("Soluciones Stock","🧪"),("Recetas de Medios","📖"),("Imprimir Etiquetas","🖨"),
-    ("Control del Sistema","⚙️")
+    ("Soluciones Stock","🧪"),("Recetas de Medios","📖"),("Imprimir Etiquetas","🖨")
 ]
 cols = st.columns(4)
 if 'choice' not in st.session_state:
@@ -164,12 +163,11 @@ elif choice == "Incubación":
     def highlight_row(row):
         days = row["Días incubación"]
         if days < 6:
-            color = "background-color: yellow"
+            return ["background-color: yellow"] * len(row)
         elif days <= 28:
-            color = "background-color: lightgreen"
+            return ["background-color: lightgreen"] * len(row)
         else:
-            color = "background-color: red"
-        return [color] * len(row)
+            return ["background-color: red"] * len(row)
 
     st.dataframe(
         df.style.apply(highlight_row, axis=1)
@@ -177,7 +175,7 @@ elif choice == "Incubación":
         use_container_width=True
     )
 
-# --- Baja Inventario (modificado) ---
+# --- Baja Inventario ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
     motivo   = st.radio("Motivo", ["Consumo","Merma"])
@@ -196,9 +194,8 @@ elif choice == "Baja Inventario":
 
     if st.button("Aplicar baja"):
         detalles = f"Cantidad de frascros: {cantidad}"
-        if motivo == "Merma":
+        if tipo_merma:
             detalles += f"; Tipo de merma: {tipo_merma}"
-
         mov_df.loc[len(mov_df)] = [
             datetime.now().isoformat(),
             f"Baja {motivo}",
@@ -294,46 +291,17 @@ elif choice == "Imprimir Etiquetas":
                 f"Solución: {row['Solución']}",
                 f"Fecha: {row['Fecha']}"
             ]
-            buf   = make_qr(cod_imp)
-            label = make_label(info, buf)
+            buf     = make_qr(cod_imp)
+            label   = make_label(info, buf)
             st.image(label)
-            bio = BytesIO()
-            label.save(bio, format="PNG")
-            bio.seek(0)
-            st.download_button("Descargar etiqueta", bio,
-                               file_name=f"etiqueta_{cod_imp}.png")
+            pdf_buf = BytesIO()
+            label.convert("RGB").save(pdf_buf, format="PDF")
+            pdf_buf.seek(0)
+            st.download_button(
+                "Descargar etiqueta (PDF)",
+                pdf_buf,
+                file_name=f"etiqueta_{cod_imp}.pdf",
+                mime="application/pdf"
+            )
     else:
         st.info("No hay lotes registrados aún.")
-
-# --- Control del Sistema ---
-elif choice == "Control del Sistema":
-    st.header("⚙️ Control del Sistema")
-
-    st.subheader("Editar Inventario de Lotes")
-    inv_edit = st.experimental_data_editor(inv_df, num_rows="dynamic")
-    if st.button("Guardar cambios inventario"):
-        inv_edit.to_csv(INV_FILE, index=False)
-        st.success("Inventario actualizado.")
-
-    st.markdown("---")
-    st.subheader("Eliminar Lote")
-    cod_elim = st.selectbox("Selecciona código de lote", inv_df["Código"].tolist())
-    if st.button("Eliminar lote"):
-        inv_df.drop(inv_df[inv_df["Código"] == cod_elim].index, inplace=True)
-        inv_df.to_csv(INV_FILE, index=False)
-        st.success(f"Lote {cod_elim} eliminado.")
-
-    st.markdown("---")
-    st.subheader("Editar Soluciones Stock")
-    sol_edit = st.experimental_data_editor(sol_df, num_rows="dynamic")
-    if st.button("Guardar cambios soluciones"):
-        sol_edit.to_csv(SOL_FILE, index=False)
-        st.success("Soluciones stock actualizadas.")
-
-    st.markdown("---")
-    st.subheader("Eliminar Solución")
-    cod_sol_elim = st.selectbox("Código solución", sol_df["Código_Solución"].tolist())
-    if st.button("Eliminar solución"):
-        sol_df.drop(sol_df[sol_df["Código_Solución"] == cod_sol_elim].index, inplace=True)
-        sol_df.to_csv(SOL_FILE, index=False)
-        st.success(f"Solución {cod_sol_elim} eliminada.")
