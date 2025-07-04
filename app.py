@@ -33,7 +33,6 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     w, h = size
     img = Image.new("RGB", (w, h), "white")
     draw = ImageDraw.Draw(img)
-    # Fuente más pequeña para mejorar legibilidad y encajar mejor
     try:
         font = ImageFont.truetype("DejaVuSans-Bold.ttf", 12)
     except IOError:
@@ -149,26 +148,29 @@ elif choice == "Incubación":
 
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
-    motivo = st.radio("Motivo:", ["Consumo", "Merma", "Contenedores", "Retorno de inventario"])
+    motivo = st.radio("Motivo:", ["Consumo", "Merma"])
     códigos = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
     sel = st.selectbox("Selecciona código", códigos)
     fecha = st.date_input("Fecha de salida")
     variedad = st.text_input("Variedad")
+    cantidad_frascos = st.number_input("Cantidad de frascos a dar de baja", min_value=1, value=1)
+    if motivo == "Merma":
+        tipo_merma = st.selectbox("Tipo de Merma", ["Contaminación", "Ruptura", "Evaporación", "Otro"])
     if st.button("Aplicar baja"):
-        if motivo == "Retorno de inventario":
-            # TODO: lógica para retorno de inventario (re-agregar registro u otra acción)
-            st.success("Inventario retornado correctamente.")
-        elif motivo == "Contenedores":
-            # TODO: lógica para baja de contenedores
-            st.success("Contenedor dado de baja.")
-        else:
-            if sel in inv_df['Código']:
+        if sel in inv_df['Código']:
+            inv_df.loc[inv_df['Código'] == sel, 'Frascos'] -= cantidad_frascos
+            if inv_df.loc[inv_df['Código'] == sel, 'Frascos'].values[0] <= 0:
                 inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
-                inv_df.to_csv(INV_FILE, index=False)
-            else:
+            inv_df.to_csv(INV_FILE, index=False)
+        else:
+            sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'] = sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'].astype(int) - cantidad_frascos
+            if sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'].values[0] <= 0:
                 sol_df.drop(sol_df[sol_df['Código_Solución'] == sel].index, inplace=True)
-                sol_df.to_csv(SOL_FILE, index=False)
-            st.success("Registro dado de baja.")
+            sol_df.to_csv(SOL_FILE, index=False)
+        if motivo == "Consumo":
+            st.success(f"{cantidad_frascos} frascos dados de baja por Consumo.")
+        else:
+            st.success(f"{cantidad_frascos} frascos dados de baja por Merma ({tipo_merma}).")
 
 elif choice == "Soluciones Stock":
     st.header("🧪 Soluciones Stock")
@@ -219,7 +221,7 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascos: {r['Frascros']}" if 'Frascros' in r else f"Frascos: {r['Frascros']}"
+                f"Frascos: {r['Frascros']}" if 'Frascros' in r else f"Frascros: {r['Frascros']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
