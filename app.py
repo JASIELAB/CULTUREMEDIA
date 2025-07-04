@@ -117,17 +117,17 @@ if choice == "Registrar Lote":
     semana   = st.number_input("Semana", 1, 52, value=int(datetime.today().strftime('%U')))
     dia      = st.number_input("Día", 1, 7, value=datetime.today().isoweekday())
     prep     = st.number_input("Preparación #", 1, 100)
-    frascos  = st.number_input("Cantidad de frascos", 1, 999, value=1)
+    frascros = st.number_input("Cantidad de frascros", 1, 999, value=1)
     ph_aj    = st.number_input("pH ajustado", 0.0, 14.0, format="%.1f")
     ph_fin   = st.number_input("pH final", 0.0, 14.0, format="%.1f")
     ce       = st.number_input("CE final", 0.0, 20.0, format="%.2f")
     litros   = st.number_input("Litros a preparar", 0.0, 100.0, value=1.0, format="%.2f")
-    dosif    = st.number_input("Dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f")
+    dosif    = st.number_input("Dosificar por frascro", 0.0, 10.0, value=0.0, format="%.2f")
     if st.button("Registrar lote"):
         code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
         inv_df.loc[len(inv_df)] = [
             code, year, receta, solucion, equipo, semana, dia, prep,
-            frascos, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()
+            frascros, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()
         ]
         inv_df.to_csv(INV_FILE, index=False)
         mov_df.loc[len(mov_df)] = [
@@ -140,11 +140,9 @@ if choice == "Registrar Lote":
 elif choice == "Consultar Stock":
     st.header("📦 Consultar Stock")
     st.dataframe(inv_df, use_container_width=True)
-    st.download_button(
-        "Descargar Inventario (CSV)",
-        inv_df.to_csv(index=False).encode("utf-8"),
-        file_name="inventario_medios.csv"
-    )
+    st.download_button("Descargar Inventario (CSV)",
+                       inv_df.to_csv(index=False).encode("utf-8"),
+                       file_name="inventario_medios.csv")
 
 # --- Inventario Completo ---
 elif choice == "Inventario Completo":
@@ -154,18 +152,40 @@ elif choice == "Inventario Completo":
     st.subheader("📜 Histórico de Movimientos")
     st.dataframe(mov_df, use_container_width=True)
 
-# --- Baja Inventario ---
+# --- Baja Inventario (modificado) ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
     motivo   = st.radio("Motivo", ["Consumo","Merma"])
     codigos  = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
     sel      = st.selectbox("Selecciona código", codigos)
-    cantidad = st.number_input("Cantidad a dar de baja", 1, 999, value=1)
+    cantidad = st.number_input("Cantidad de frascros a dar de baja", 1, 999, value=1)
+
+    if motivo == "Merma":
+        tipo_merma = st.selectbox(
+            "Tipo de Merma",
+            ["Contaminación","Ruptura","Evaporación",
+             "Falla eléctrica","Interrupción del suministro de agua","Otro"]
+        )
+    else:
+        tipo_merma = None
+
     if st.button("Aplicar baja"):
+        # Preparamos el texto de detalles
+        detalles = f"Cantidad de frascros: {cantidad}"
+        if motivo == "Merma":
+            detalles += f"; Tipo de merma: {tipo_merma}"
+
+        # Registramos en histórico
         mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(), f"Baja {motivo}", sel, cantidad, f"Motivo: {motivo}"
+            datetime.now().isoformat(),
+            f"Baja {motivo}",
+            sel,
+            cantidad,
+            detalles
         ]
         mov_df.to_csv(HIST_FILE, index=False)
+
+        # Ajustamos el inventario
         if sel in inv_df['Código'].values:
             idx = inv_df[inv_df['Código'] == sel].index[0]
             cur = int(inv_df.at[idx, "Frascros"])
@@ -176,13 +196,14 @@ elif choice == "Baja Inventario":
             cur = float(sol_df.at[idx, "Cantidad"])
             sol_df.at[idx, "Cantidad"] = max(0, cur - cantidad)
             sol_df.to_csv(SOL_FILE, index=False)
+
         st.success(f"{motivo} aplicado a {sel}.")
 
 # --- Retorno de Medio Nutritivo ---
 elif choice == "Retorno Medio Nutritivo":
     st.header("🔄 Retorno Medio Nutritivo")
     sel        = st.selectbox("Selecciona lote", inv_df['Código'].tolist())
-    cant_retor = st.number_input("Cantidad de frascos a retornar", 1, 999, value=1)
+    cant_retor = st.number_input("Cantidad de frascros a retornar", 1, 999, value=1)
     if st.button("Aplicar retorno"):
         idx = inv_df[inv_df['Código'] == sel].index[0]
         cur = int(inv_df.at[idx, "Frascros"])
@@ -213,7 +234,8 @@ elif choice == "Soluciones Stock":
         ]
         sol_df.to_csv(SOL_FILE, index=False)
         mov_df.loc[len(mov_df)] = [
-            datetime.now().isoformat(), "Stock Solución", codigo_sol, cantidad_sol, f"Resp: {responsable}"
+            datetime.now().isoformat(), "Stock Solución",
+            codigo_sol, cantidad_sol, f"Resp: {responsable}"
         ]
         mov_df.to_csv(HIST_FILE, index=False)
         st.success(f"Solución {codigo_sol} registrada.")
@@ -221,11 +243,9 @@ elif choice == "Soluciones Stock":
     st.markdown("---")
     st.subheader("📋 Inventario de Soluciones")
     st.dataframe(sol_df, use_container_width=True)
-    st.download_button(
-        "Descargar Soluciones (CSV)",
-        sol_df.to_csv(index=False).encode("utf-8"),
-        file_name="soluciones_stock.csv"
-    )
+    st.download_button("Descargar Soluciones (CSV)",
+                       sol_df.to_csv(index=False).encode("utf-8"),
+                       file_name="soluciones_stock.csv")
 
 # --- Recetas de Medios ---
 elif choice == "Recetas de Medios":
@@ -250,13 +270,14 @@ elif choice == "Imprimir Etiquetas":
                 f"Solución: {row['Solución']}",
                 f"Fecha: {row['Fecha']}"
             ]
-            buf = make_qr(cod_imp)
+            buf   = make_qr(cod_imp)
             label = make_label(info, buf)
             st.image(label)
             bio = BytesIO()
             label.save(bio, format="PNG")
             bio.seek(0)
-            st.download_button("Descargar etiqueta", bio, file_name=f"etiqueta_{cod_imp}.png")
+            st.download_button("Descargar etiqueta", bio,
+                               file_name=f"etiqueta_{cod_imp}.png")
     else:
         st.info("No hay lotes registrados aún.")
 
