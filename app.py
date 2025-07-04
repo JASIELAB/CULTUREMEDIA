@@ -9,7 +9,7 @@ import os
 # --- Page Config ---
 st.set_page_config(page_title="Medios Cultivo", layout="wide")
 
-# --- Logo en esquina superior izquierda ---
+# --- Logo ---
 logo_path = "plablue.png"
 if os.path.isfile(logo_path):
     try:
@@ -18,7 +18,7 @@ if os.path.isfile(logo_path):
     except Exception as e:
         st.warning(f"Error al cargar el logo: {e}")
 else:
-    st.warning(f"Logo '{logo_path}' no encontrado en el directorio de la aplicación.")
+    st.warning(f"Logo '{logo_path}' no encontrado.")
 
 # --- Helpers ---
 def make_qr(text: str) -> BytesIO:
@@ -50,21 +50,18 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
 
-# --- Data Files and Columns ---
+# --- Files & Columns ---
 INV_FILE = "inventario_medios.csv"
 SOL_FILE = "soluciones_stock.csv"
 HIST_FILE = "movimientos.csv"
 REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
-inv_cols = [
-    "Código", "Año", "Receta", "Solución", "Equipo", "Semana", "Día", "Preparación",
-    "Frascros", "pH_Ajustado", "pH_Final", "CE_Final",
-    "Litros_preparar", "Dosificar_por_frasco", "Fecha"
-]
-sol_cols = ["Fecha", "Cantidad", "Código_Solución", "Responsable", "Regulador", "Observaciones"]
-hist_cols = ["Timestamp", "Tipo", "Código", "Cantidad", "Detalles"]
+inv_cols = ["Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
+            "Frascros","pH_Ajustado","pH_Final","CE_Final","Litros_preparar","Dosificar_por_frasco","Fecha"]
+sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
+hist_cols = ["Timestamp","Tipo","Código","Cantidad","Detalles"]
 
-# --- Load or init DataFrames ---
+# --- Load DataFrames ---
 def load_df(path, cols):
     if os.path.exists(path):
         df = pd.read_csv(path)
@@ -79,7 +76,7 @@ inv_df = load_df(INV_FILE, inv_cols)
 sol_df = load_df(SOL_FILE, sol_cols)
 mov_df = load_df(HIST_FILE, hist_cols)
 
-# --- Load recipes ---
+# --- Recipes ---
 recipes = {}
 if os.path.exists(REC_FILE):
     xls = pd.ExcelFile(REC_FILE)
@@ -87,43 +84,41 @@ if os.path.exists(REC_FILE):
         df = xls.parse(sheet)
         if df.shape[0] > 9:
             sub = df.iloc[9:, :3].dropna(how='all').copy()
-            sub.columns = ["Componente", "Fórmula", "Concentración"]
+            sub.columns = ["Componente","Fórmula","Concentración"]
             recipes[sheet] = sub
 
-# --- User Interface ---
+# --- UI ---
 st.title("Control de Medios de Cultivo InVitro")
 st.markdown("---")
-menu = [
-    ("Registrar Lote","📋"),("Consultar Stock","📦"),("Inventario Completo","🔍"),
-    ("Incubación","⏱"),("Baja Inventario","⚠️"),("Retorno Medio Nutritivo","🔄"),
-    ("Soluciones Stock","🧪"),("Recetas de Medios","📖"),("Imprimir Etiquetas","🖨"),
-    ("Control del Sistema","⚙️")
-]
+menu = [("Registrar Lote","📋"),("Consultar Stock","📦"),("Inventario Completo","🔍"),
+        ("Incubación","⏱"),("Baja Inventario","⚠️"),("Retorno Medio Nutritivo","🔄"),
+        ("Soluciones Stock","🧪"),("Recetas de Medios","📖"),("Imprimir Etiquetas","🖨"),
+        ("Control del Sistema","⚙️")]
 cols = st.columns(4)
 if 'choice' not in st.session_state:
     st.session_state.choice = menu[0][0]
-for i,(label,icon) in enumerate(menu):
-    if cols[i%4].button(f"{icon}  {label}", key=label):
-        st.session_state.choice = label
+for i,(lbl,icn) in enumerate(menu):
+    if cols[i%4].button(f"{icn}  {lbl}", key=lbl):
+        st.session_state.choice = lbl
 choice = st.session_state.choice
 st.markdown("---")
 
 # --- Registrar Lote ---
-if choice == "Registrar Lote":
+if choice=="Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     año = st.number_input("Año",2000,2100,value=date.today().year)
     receta = st.selectbox("Receta",list(recipes.keys()))
     solucion = st.text_input("Solución stock")
     equipo = st.selectbox("Equipo",["Preparadora Alpha","Preparadora Beta"])
-    semana = st.number_input("Semana",1,52,value=int(datetime.today().strftime('%U')))
-    día = st.number_input("Día",1,7,value=datetime.today().isoweekday())
-    prep = st.number_input("Preparación #",1,100)
-    frascros = st.number_input("Cantidad de frascros",1,999,value=1)
-    ph_aj = st.number_input("pH ajustado",0.0,14.0,format="%.1f")
-    ph_fin = st.number_input("pH final",0.0,14.0,format="%.1f")
-    ce = st.number_input("CE final",0.0,20.0,format="%.2f")
-    litros = st.number_input("Litros a preparar",0.0,100.0,value=1.0,format="%.2f")
-    dosificar = st.number_input("Cantidad a dosificar por frasco",0.0,10.0,value=0.0,format="%.2f")
+    semana=st.number_input("Semana",1,52,value=int(datetime.today().strftime('%U')))
+    día=st.number_input("Día",1,7,value=datetime.today().isoweekday())
+    prep=st.number_input("Preparación #",1,100)
+    frascros=st.number_input("Cantidad de frascros",1,999,value=1)
+    ph_aj=st.number_input("pH ajustado",0.0,14.0,format="%.1f")
+    ph_fin=st.number_input("pH final",0.0,14.0,format="%.1f")
+    ce=st.number_input("CE final",0.0,20.0,format="%.2f")
+    litros=st.number_input("Litros a preparar",0.0,100.0,value=1.0,format="%.2f")
+    dosificar=st.number_input("Cantidad a dosificar por frasco",0.0,10.0,value=0.0,format="%.2f")
     if st.button("Registrar lote"):
         code=f"{str(año)[2:]}{receta[:2]}Z{semana:02d}{día}-{prep}"
         inv_df.loc[len(inv_df)]=[code,año,receta,solucion,equipo,semana,día,prep,frascros,ph_aj,ph_fin,ce,litros,dosificar,date.today().isoformat()]
@@ -136,8 +131,7 @@ if choice == "Registrar Lote":
 elif choice=="Consultar Stock":
     st.header("📦 Consultar Stock")
     st.dataframe(inv_df,use_container_width=True)
-    csv_inv=inv_df.to_csv(index=False).encode('utf-8')
-    st.download_button("Descargar Inventario (CSV)",csv_inv,file_name="inventario_medios.csv",mime="text/csv")
+    st.download_button("Descargar Inventario (CSV)",inv_df.to_csv(index=False).encode('utf-8'),file_name="inventario_medios.csv",mime="text/csv")
 
 # --- Inventario Completo ---
 elif choice=="Inventario Completo":
@@ -146,11 +140,10 @@ elif choice=="Inventario Completo":
     st.markdown("---")
     st.subheader("📜 Histórico de Movimientos")
     st.dataframe(mov_df,use_container_width=True)
-    csv_mov=mov_df.to_csv(index=False).encode('utf-8')
-    st.download_button("Descargar Histórico (CSV)",csv_mov,file_name="movimientos_stock.csv",mime="text/csv")
+    st.download_button("Descargar Histórico (CSV)",mov_df.to_csv(index=False).encode('utf-8'),file_name="movimientos_stock.csv",mime="text/csv")
     buf=BytesIO()
-    with pd.ExcelWriter(buf,engine='openpyxl') as writer:
-        mov_df.to_excel(writer,index=False,sheet_name='Movimientos')
+    with pd.ExcelWriter(buf,engine='openpyxl') as wrtr:
+        mov_df.to_excel(wrtr,index=False,sheet_name='Movimientos')
     buf.seek(0)
     st.download_button("Descargar Histórico (Excel)",buf,file_name="movimientos_stock.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -184,11 +177,11 @@ elif choice=="Baja Inventario":
                 sol_df.drop(sol_df[sol_df['Código_Solución']==sel].index,inplace=True)
             sol_df.to_csv(SOL_FILE,index=False)
         det=motivo+(f" ({tipo})" if motivo=="Merma" else "")
-        mov_df.loc[len(mov_df)]=[datetime.now().isoformat(),"Salida",sel,cantidad,det]
+        mov_df.loc[len(mov_df)]=[datetime.now().isoformat(),"Salir ",sel,cantidad,det]
         mov_df.to_csv(HIST_FILE,index=False)
-        st.success(f"{cantidad} frascros dados de baja por {det}.")
+        st.success(f"{cantidad}_frascros dados de baja por {det}.")
 
-# --- Retorno de Medio Nutritivo ---
+# --- Retorno Medio Nutritivo ---
 elif choice=="Retorno Medio Nutritivo":
     st.header("🔄 Retorno de Medio Nutritivo")
     sel=st.selectbox("Selecciona lote",inv_df['Código'].tolist())
@@ -210,4 +203,17 @@ elif choice=="Soluciones Stock":
         code_s=st.text_input("Código Solución")
     with col2:
         resp=st.text_input("Responsable")
-        reg=st.text_input("Regulador")\```
+        reg=st.text_input("Regulador")
+    if st.button("Registrar solución"):
+        sol_df.loc[len(sol_df)]=[f2.isoformat(),cant2,code_s,resp,reg,st.text_area("Observaciones")] 
+        sol_df.to_csv(SOL_FILE,index=False)
+        st.success("Solución registrada.")
+    st.markdown("---")
+    st.subheader("📦 Stock de Soluciones Registradas")
+    st.dataframe(sol_df,use_container_width=True)
+    st.download_button("Descargar Soluciones (CSV)",sol_df.to_csv(index=False).encode('utf-8'),file_name="soluciones_stock.csv",mime="text/csv")
+    buf2=BytesIO()
+    with pd.ExcelWriter(buf2,engine='openpyxl') as wr:
+        sol_df.to_excel(wr,index=False,sheet_name='Soluciones')
+    buf2.seek(0)
+    st.download_button("Descargar Soluciones (Excel)",buf2,file_name="soluciones_stock.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
