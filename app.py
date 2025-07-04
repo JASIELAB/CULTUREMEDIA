@@ -170,27 +170,28 @@ elif choice == "Incubación":
 # --- Baja Inventario ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
-    motivo = st.radio("Motivo:", ["Consumo", "Merma"])
+    motivo = st.radio("Motivo", ["Consumo", "Merma"])
     códigos = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
     sel = st.selectbox("Selecciona código", códigos)
     fecha = st.date_input("Fecha de salida")
     variedad = st.text_input("Variedad")
     cantidad = st.number_input("Cantidad de frascros a dar de baja", min_value=1, value=1)
     if motivo == "Merma":
-        tipo = st.selectbox("Tipo de Merma", ["Contaminación", "Ruptura", "Evaporación", "Falla eléctrica", "Interrupción del suministro de agua", "Otro"])
+        tipo = st.selectbox("Tipo de Merma", ["Contaminación", "Ruptura", "Evaporación", "Falla eléctrica", "Interrupción del suministro de agua", "Otro"]
+    )
     if st.button("Aplicar baja"):
         if sel in inv_df['Código'].tolist():
-            inv_df.loc[inv_df['Código'] == sel, 'Frascros'] -= cantidad
-            if inv_df.loc[inv_df['Código'] == sel, 'Frascros'].values[0] <= 0:
-                inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
+            inv_df.loc[inv_df['Código']==sel, 'Frascros'] -= cantidad
+            if inv_df.loc[inv_df['Código']==sel, 'Frascros'].values[0]<=0:
+                inv_df.drop(inv_df[inv_df['Código']==sel].index, inplace=True)
             inv_df.to_csv(INV_FILE, index=False)
         else:
             sol_df['Cantidad'] = sol_df['Cantidad'].astype(int)
-            sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'] -= cantidad
-            if sol_df.loc[sol_df['Código_Solución'] == sel, 'Cantidad'].values[0] <= 0:
-                sol_df.drop(sol_df[sol_df['Código_Solución'] == sel].index, inplace=True)
+            sol_df.loc[sol_df['Código_Solución']==sel, 'Cantidad'] -= cantidad
+            if sol_df.loc[sol_df['Código_Solución']==sel, 'Cantidad'].values[0]<=0:
+                sol_df.drop(sol_df[sol_df['Código_Solución']==sel].index, inplace=True)
             sol_df.to_csv(SOL_FILE, index=False)
-        det = motivo + (f" ({tipo})" if motivo == "Merma" else "")
+        det = motivo + (f" ({tipo})" if motivo=="Merma" else "")
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Salida", sel, cantidad, det]
         mov_df.to_csv(HIST_FILE, index=False)
         st.success(f"{cantidad} frascros dados de baja por {det}.")
@@ -202,7 +203,7 @@ elif choice == "Retorno Medio Nutritivo":
     sel = st.selectbox("Selecciona código", códigos)
     cantidad_ret = st.number_input("Cantidad de frascros a retornar", min_value=1, value=1)
     if st.button("Aplicar retorno"):
-        inv_df.loc[inv_df['Código'] == sel, 'Frascros'] += cantidad_ret
+        inv_df.loc[inv_df['Código']==sel, 'Frascros'] += cantidad_ret
         inv_df.to_csv(INV_FILE, index=False)
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Retorno", sel, cantidad_ret, ""]
         mov_df.to_csv(HIST_FILE, index=False)
@@ -231,3 +232,27 @@ elif choice == "Soluciones Stock":
     st.download_button("Descargar Soluciones (CSV)", csv_sol, file_name="soluciones_stock.csv", mime="text/csv")
     buffer_sol = BytesIO()
     with pd.ExcelWriter(buffer_sol, engine='openpyxl') as writer:
+        sol_df.to_excel(writer, index=False, sheet_name='Soluciones')
+    buffer_sol.seek(0)
+    st.download_button("Descargar Soluciones (Excel)", buffer_sol, file_name="soluciones_stock.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+# --- Recetas de Medios ---
+elif choice == "Recetas de Medios":
+    st.header("📖 Recetas de Medios")
+    selr = st.selectbox("Receta", list(recipes.keys()))
+    st.dataframe(recipes[selr], use_container_width=True)
+
+# --- Imprimir Etiquetas ---
+elif choice == "Imprimir Etiquetas":
+    st.header("🖨 Imprimir Etiquetas")
+    opts = inv_df['Código'].tolist()
+    sels = st.multiselect("Selecciona lote(s)", opts)
+    if st.button("Generar etiquetas") and sels:
+        for code in sels:
+            r = inv_df[inv_df['Código']==code].iloc[0]
+            info = [
+                f"Código: {code}",
+                f"Año: {r['Año']}",
+                f"Receta: {r['Receta']}",
+                f"Sol.: {r['Solución']}"...
+]}
