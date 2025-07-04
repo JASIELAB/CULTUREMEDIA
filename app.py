@@ -144,15 +144,13 @@ elif choice == "Consultar Stock":
 
 # --- Inventario Completo ---
 elif choice == "Inventario Completo":
-    st.header("🔍 Inventario Completo”)
+    st.header("🔍 Inventario Completo")
     st.dataframe(inv_df, use_container_width=True)
     st.markdown("---")
     st.subheader("📜 Histórico de Movimientos")
     st.dataframe(mov_df, use_container_width=True)
-    # CSV
     csv_mov = mov_df.to_csv(index=False).encode('utf-8')
     st.download_button("Descargar Histórico (CSV)", csv_mov, file_name="movimientos_stock.csv", mime="text/csv")
-    # Excel
     buffer_mov = BytesIO()
     with pd.ExcelWriter(buffer_mov, engine='openpyxl') as writer:
         mov_df.to_excel(writer, index=False, sheet_name='Movimientos')
@@ -185,7 +183,7 @@ elif choice == "Baja Inventario":
     if motivo == "Merma":
         tipo = st.selectbox("Tipo de Merma", ["Contaminación", "Ruptura", "Evaporación", "Falla eléctrica", "Interrupción del suministro de agua", "Otro"])
     if st.button("Aplicar baja"):
-        if sel in inv_df['Código']:
+        if sel in inv_df['Código'].tolist():
             inv_df.loc[inv_df['Código'] == sel, 'Frascros'] -= cantidad
             if inv_df.loc[inv_df['Código'] == sel, 'Frascros'].values[0] <= 0:
                 inv_df.drop(inv_df[inv_df['Código'] == sel].index, inplace=True)
