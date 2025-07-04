@@ -61,8 +61,20 @@ inv_cols = ["Código", "Año", "Receta", "Solución", "Equipo", "Semana", "Día"
 sol_cols = ["Fecha", "Cantidad", "Código_Solución", "Responsable", "Regulador", "Observaciones"]
 
 # Load data or create empty
-inv_df = pd.read_csv(INV_FILE) if os.path.exists(INV_FILE) else pd.DataFrame(columns=inv_cols)
-sol_df = pd.read_csv(SOL_FILE) if os.path.exists(SOL_FILE) else pd.DataFrame(columns=sol_cols)
+if os.path.exists(INV_FILE):
+    inv_df = pd.read_csv(INV_FILE)
+else:
+    inv_df = pd.DataFrame(columns=inv_cols)
+# Ensure 'Equipo' column exists and correct order
+for col in inv_cols:
+    if col not in inv_df.columns:
+        inv_df[col] = ''
+inv_df = inv_df[inv_cols]
+
+if os.path.exists(SOL_FILE):
+    sol_df = pd.read_csv(SOL_FILE)
+else:
+    sol_df = pd.DataFrame(columns=sol_cols)
 
 # Cargar recetas desde Excel
 recipes = {}
@@ -171,7 +183,7 @@ elif choice == "Baja Inventario":
     if st.button("Aplicar baja"):
         if sel in inv_df['Código'].tolist():
             inv_df.loc[inv_df['Código']==sel, 'Frascos'] -= cantidad_frascos
-            if inv_df.loc[inv_df['Código']==sel, 'Frascos'].values[0] <= 0:
+            if inv_df.loc[inv_df['Código']==sel, 'Frascros'].values[0] <= 0:
                 inv_df.drop(inv_df[inv_df['Código']==sel].index, inplace=True)
             inv_df.to_csv(INV_FILE, index=False)
         else:
@@ -180,7 +192,7 @@ elif choice == "Baja Inventario":
             if sol_df.loc[sol_df['Código_Solución']==sel, 'Cantidad'].values[0] <= 0:
                 sol_df.drop(sol_df[sol_df['Código_Solución']==sel].index, inplace=True)
             sol_df.to_csv(SOL_FILE, index=False)
-        message = f"{cantidad_frascos} frascos dados de baja por {motivo}"
+        message = f"{cantidad_frascos} frascros dados de baja por {motivo}"
         if motivo == "Merma":
             message += f" ({tipo_merma})"
         st.success(message)
@@ -191,11 +203,11 @@ elif choice == "Retorno Medio Nutritivo":
     códigos = inv_df['Código'].tolist()
     sel = st.selectbox("Selecciona código", códigos)
     fecha_ret = st.date_input("Fecha de retorno")
-    cantidad_retorno = st.number_input("Cantidad de frascos a retornar", min_value=1, value=1)
+    cantidad_retorno = st.number_input("Cantidad de frascros a retornar", min_value=1, value=1)
     if st.button("Aplicar retorno"):
-        inv_df.loc[inv_df['Código'] == sel, 'Frascos'] += cantidad_retorno
+        inv_df.loc[inv_df['Código'] == sel, 'Frascros'] += cantidad_retorno
         inv_df.to_csv(INV_FILE, index=False)
-        st.success(f"{cantidad_retorno} frascos retornados al inventario.")
+        st.success(f"{cantidad_retorno} frascros retornados al inventario.")
 
 # --- Soluciones Stock ---
 elif choice == "Soluciones Stock":
@@ -250,7 +262,7 @@ elif choice == "Imprimir Etiquetas":
                 f"Sem: {r['Semana']}",
                 f"Día: {r['Día']}",
                 f"Prep: {r['Preparación']}",
-                f"Frascos: {r['Frascros'] if 'Frascros' in r else r['Frascros']}"
+                f"Frascros: {r['Frascros'] if 'Frascros' in r else r['Frascros']}"
             ]
             buf = make_qr(code)
             lbl = make_label(info, buf)
