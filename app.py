@@ -140,9 +140,11 @@ if choice == "Registrar Lote":
 elif choice == "Consultar Stock":
     st.header("📦 Consultar Stock")
     st.dataframe(inv_df, use_container_width=True)
-    st.download_button("Descargar Inventario (CSV)",
-                       inv_df.to_csv(index=False).encode("utf-8"),
-                       file_name="inventario_medios.csv")
+    st.download_button(
+        "Descargar Inventario (CSV)",
+        inv_df.to_csv(index=False).encode("utf-8"),
+        file_name="inventario_medios.csv"
+    )
 
 # --- Inventario Completo ---
 elif choice == "Inventario Completo":
@@ -151,6 +153,29 @@ elif choice == "Inventario Completo":
     st.markdown("---")
     st.subheader("📜 Histórico de Movimientos")
     st.dataframe(mov_df, use_container_width=True)
+
+# --- Incubación ---
+elif choice == "Incubación":
+    st.header("⏱ Incubación")
+    df = inv_df.copy()
+    df["Fecha"] = pd.to_datetime(df["Fecha"])
+    df["Días incubación"] = (pd.to_datetime(date.today()) - df["Fecha"]).dt.days
+
+    def highlight_row(row):
+        days = row["Días incubación"]
+        if days < 6:
+            color = "background-color: yellow"
+        elif days <= 28:
+            color = "background-color: lightgreen"
+        else:
+            color = "background-color: red"
+        return [color] * len(row)
+
+    st.dataframe(
+        df.style.apply(highlight_row, axis=1)
+               .format({"Días incubación": "{:.0f}"}),
+        use_container_width=True
+    )
 
 # --- Baja Inventario (modificado) ---
 elif choice == "Baja Inventario":
@@ -170,12 +195,10 @@ elif choice == "Baja Inventario":
         tipo_merma = None
 
     if st.button("Aplicar baja"):
-        # Preparamos el texto de detalles
         detalles = f"Cantidad de frascros: {cantidad}"
         if motivo == "Merma":
             detalles += f"; Tipo de merma: {tipo_merma}"
 
-        # Registramos en histórico
         mov_df.loc[len(mov_df)] = [
             datetime.now().isoformat(),
             f"Baja {motivo}",
@@ -185,7 +208,6 @@ elif choice == "Baja Inventario":
         ]
         mov_df.to_csv(HIST_FILE, index=False)
 
-        # Ajustamos el inventario
         if sel in inv_df['Código'].values:
             idx = inv_df[inv_df['Código'] == sel].index[0]
             cur = int(inv_df.at[idx, "Frascros"])
@@ -243,9 +265,11 @@ elif choice == "Soluciones Stock":
     st.markdown("---")
     st.subheader("📋 Inventario de Soluciones")
     st.dataframe(sol_df, use_container_width=True)
-    st.download_button("Descargar Soluciones (CSV)",
-                       sol_df.to_csv(index=False).encode("utf-8"),
-                       file_name="soluciones_stock.csv")
+    st.download_button(
+        "Descargar Soluciones (CSV)",
+        sol_df.to_csv(index=False).encode("utf-8"),
+        file_name="soluciones_stock.csv"
+    )
 
 # --- Recetas de Medios ---
 elif choice == "Recetas de Medios":
