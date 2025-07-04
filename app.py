@@ -50,20 +50,19 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     return img
 
 # --- Archivos y columnas ---
-INV_FILE  = "inventario_medios.csv"
-SOL_FILE  = "soluciones_stock.csv"
+INV_FILE = "inventario_medios.csv"
+SOL_FILE = "soluciones_stock.csv"
 HIST_FILE = "movimientos.csv"
-REC_FILE  = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
+REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
-inv_cols  = [
+inv_cols = [
     "Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
     "frascos","pH_Ajustado","pH_Final","CE_Final",
     "Litros_preparar","Dosificar_por_frasco","Fecha"
 ]
-sol_cols  = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
+sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
 hist_cols = ["Timestamp","Tipo","Código","Cantidad","Detalles"]
 
-# Carga o inicializa DataFrames
 def load_df(path, cols):
     if os.path.exists(path):
         df = pd.read_csv(path)
@@ -102,7 +101,7 @@ cols = st.columns(4)
 if 'choice' not in st.session_state:
     st.session_state.choice = menu[0][0]
 for i, (lbl, icn) in enumerate(menu):
-    if cols[i%4].button(f"{icn}  {lbl}", key=lbl):
+    if cols[i % 4].button(f"{icn}  {lbl}", key=lbl):
         st.session_state.choice = lbl
 choice = st.session_state.choice
 st.markdown("---")
@@ -110,19 +109,19 @@ st.markdown("---")
 # --- Registrar Lote ---
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
-    year     = st.number_input("Año", 2000, 2100, value=date.today().year)
-    receta   = st.selectbox("Receta", list(recipes.keys()))
+    year = st.number_input("Año", 2000, 2100, value=date.today().year)
+    receta = st.selectbox("Receta", list(recipes.keys()))
     solucion = st.text_input("Solución stock")
-    equipo   = st.selectbox("Equipo", ["Preparadora Alpha","Preparadora Beta"])
-    semana   = st.number_input("Semana", 1, 52, value=int(datetime.today().strftime('%U')))
-    dia      = st.number_input("Día", 1, 7, value=datetime.today().isoweekday())
-    prep     = st.number_input("Preparación #", 1, 100)
-    frascos  = st.number_input("Cantidad de frascos", 1, 999, value=1)
-    ph_aj    = st.number_input("pH ajustado", 0.0, 14.0, format="%.1f")
-    ph_fin   = st.number_input("pH final", 0.0, 14.0, format="%.1f")
-    ce       = st.number_input("CE final", 0.0, 20.0, format="%.2f")
-    litros   = st.number_input("Litros a preparar", 0.0, 100.0, value=1.0, format="%.2f")
-    dosif    = st.number_input("Dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f")
+    equipo = st.selectbox("Equipo", ["Preparadora Alpha","Preparadora Beta"])
+    semana = st.number_input("Semana", 1, 52, value=int(datetime.today().strftime('%U')))
+    dia = st.number_input("Día", 1, 7, value=datetime.today().isoweekday())
+    prep = st.number_input("Preparación #", 1, 100)
+    frascos = st.number_input("Cantidad de frascos", 1, 999, value=1)
+    ph_aj = st.number_input("pH ajustado", 0.0, 14.0, format="%.1f")
+    ph_fin = st.number_input("pH final", 0.0, 14.0, format="%.1f")
+    ce = st.number_input("CE final", 0.0, 20.0, format="%.2f")
+    litros = st.number_input("Litros a preparar", 0.0, 100.0, value=1.0, format="%.2f")
+    dosif = st.number_input("Dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f")
     if st.button("Registrar lote"):
         code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
         inv_df.loc[len(inv_df)] = [
@@ -179,9 +178,9 @@ elif choice == "Incubación":
 # --- Baja Inventario ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
-    motivo   = st.radio("Motivo", ["Consumo","Merma"])
-    codigos  = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
-    sel      = st.selectbox("Selecciona código", codigos)
+    motivo = st.radio("Motivo", ["Consumo","Merma"] )
+    codigos = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
+    sel = st.selectbox("Selecciona código", codigos)
     cantidad = st.number_input("Cantidad de frascos a dar de baja", 1, 999, value=1)
 
     if motivo == "Merma":
@@ -193,8 +192,8 @@ elif choice == "Baja Inventario":
     else:
         tipo_merma = None
 
-    if st.button("Aplicar baja"): 
-        detalles = f"Cantidad de frascros: {cantidad}"
+    if st.button("Aplicar baja"):  
+        detalles = f"Cantidad de frascos: {cantidad}"
         if tipo_merma:
             detalles += f"; Tipo de merma: {tipo_merma}"
         mov_df.loc[len(mov_df)] = [
@@ -207,6 +206,97 @@ elif choice == "Baja Inventario":
         mov_df.to_csv(HIST_FILE, index=False)
         if sel in inv_df['Código'].values:
             idx = inv_df[inv_df['Código'] == sel].index[0]
-            cur = int(inv_df.at[idx, "frascros"])
-            inv_df.at[idx, "frascros"] = max(0, cur - cantidad)
-            inv_df.to_csv(INVOK
+            cur = int(inv_df.at[idx, "frascos"])
+            inv_df.at[idx, "frascos"] = max(0, cur - cantidad)
+            inv_df.to_csv(INV_FILE, index=False)
+        else:
+            idx = sol_df[sol_df['Código_Solución'] == sel].index[0]
+            cur = float(sol_df.at[idx, "Cantidad"])
+            sol_df.at[idx, "Cantidad"] = max(0, cur - cantidad)
+            sol_df.to_csv(SOL_FILE, index=False)
+        st.success(f"{motivo} aplicado a {sel}.")
+
+# --- Retorno de Medio Nutritivo ---
+elif choice == "Retorno Medio Nutritivo":
+    st.header("🔄 Retorno Medio Nutritivo")
+    sel = st.selectbox("Selecciona lote", inv_df['Código'].tolist())
+    cant_retor = st.number_input("Cantidad de frascos a retornar", 1, 999, value=1)
+    if st.button("Aplicar retorno"):
+        idx = inv_df[inv_df['Código'] == sel].index[0]
+        cur = int(inv_df.at[idx, "frascos"])
+        inv_df.at[idx, "frascos"] = cur + cant_retor
+        inv_df.to_csv(INV_FILE, index=False)
+        mov_df.loc[len(mov_df)] = [
+            datetime.now().isoformat(), "Retorno", sel, cant_retor, ""
+        ]
+        mov_df.to_csv(HIST_FILE, index=False)
+        st.success(f"Retorno de {cant_retor} frascros para {sel} aplicado.")
+
+# --- Soluciones Stock ---
+elif choice == "Soluciones Stock":
+    st.header("🧪 Gestionar Soluciones Stock")
+    col1, col2 = st.columns(2)
+    with col1:
+        fecha_sol = st.date_input("Fecha", value=date.today())
+        cantidad_sol = st.number_input("Cantidad (L)", min_value=0.0, format="%.2f")
+        codigo_sol = st.text_input("Código Solución")
+    with col2:
+        responsable = st.text_input("Responsable")
+        regulador = st.text_input("Regulador")
+        observaciones = st.text_area("Observaciones")
+    if st.button("Registrar solución"):
+        sol_df.loc[len(sol_df)] = [
+            fecha_sol.isoformat(), cantidad_sol, codigo_sol,
+            responsable, regulador, observaciones
+        ]
+        sol_df.to_csv(SOL_FILE, index=False)
+        mov_df.loc[len(mov_df)] = [
+            datetime.now().isoformat(), "Stock Solución",
+            codigo_sol, cantidad_sol, f"Resp: {responsable}"
+        ]
+        mov_df.to_csv(HIST_FILE, index=False)
+        st.success(f"Solución {codigo_sol} registrada.")
+
+    st.markdown("---")
+    st.subheader("📋 Inventario de Soluciones")
+    st.dataframe(sol_df, use_container_width=True)
+    st.download_button(
+        "Descargar Soluciones (CSV)",
+        sol_df.to_csv(index=False).encode("utf-8"),
+        file_name="soluciones_stock.csv"
+    )
+
+# --- Recetas de Medios ---
+elif choice == "Recetas de Medios":
+    st.header("📖 Recetas de Medios")
+    if recipes:
+        for name, df in recipes.items():
+            st.subheader(name)
+            st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No se encontró el archivo de recetas.")
+
+# --- Imprimir Etiquetas ---
+elif choice == "Imprimir Etiquetas":
+    st.header("🖨 Imprimir Etiquetas")
+    if not inv_df.empty:
+        cod_imp = st.selectbox("Selecciona lote", inv_df["Código"].tolist())
+        if st.button("Generar etiqueta"):
+            row = inv_df[inv_df["Código"] == cod_imp].iloc[0]
+            info = [
+                f"Código: {row['Código']}",
+                f"Receta: {row['Receta']}",
+                f"Solución: {row['Solución']}",
+                f"Fecha: {row['Fecha']}"
+            ]
+            buf = make_qr(cod_imp)
+            label = make_label(info, buf)
+            st.image(label)
+            pdf_buf = BytesIO()
+            label.convert("RGB").save(pdf_buf, format="PDF")
+            pdf_buf.seek(0)
+            st.download_button(
+                "Descargar etiqueta (PDF)", pdf_buf,
+                file_name=f"etiqueta_{cod_imp}.pdf",
+                mime="application/pdf"
+            )
