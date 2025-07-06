@@ -49,12 +49,7 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
 
-# --- Archivos y columnas ---
-INV_FILE = "inventario_medios.csv"
-SOL_FILE = "soluciones_stock.csv"
-HIST_FILE = "movimientos.csv"
-REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
-
+# --- Columnas estándar ---
 inv_cols = [
     "Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
     "frascos","pH_Ajustado","pH_Final","CE_Final",
@@ -62,6 +57,11 @@ inv_cols = [
 ]
 sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
 hist_cols = ["Timestamp","Tipo","Código","Cantidad","Detalles"]
+
+INV_FILE = "inventario_medios.csv"
+SOL_FILE = "soluciones_stock.csv"
+HIST_FILE = "movimientos.csv"
+REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
 def load_df(path, cols):
     if os.path.exists(path):
@@ -80,6 +80,15 @@ mov_df = load_df(HIST_FILE, hist_cols)
 def save_inventory(): inv_df.to_csv(INV_FILE, index=False)
 def save_solutions(): sol_df.to_csv(SOL_FILE, index=False)
 def save_history(): mov_df.to_csv(HIST_FILE, index=False)
+
+# --- Botón para descargar inventario_medios.csv vacío ---
+st.sidebar.markdown("### Utilidades")
+df_vacio = pd.DataFrame(columns=inv_cols)
+st.sidebar.download_button(
+    "Descargar inventario_medios.csv vacío",
+    df_vacio.to_csv(index=False).encode('utf-8'),
+    file_name="inventario_medios.csv"
+)
 
 # --- Recetas ---
 recipes = {}
