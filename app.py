@@ -106,7 +106,8 @@ st.markdown("---")
 menu = [
     ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Inventario Completo","🔍"),
     ("Incubación","⏱"), ("Baja Inventario","⚠️"), ("Retorno Medio Nutritivo","🔄"),
-    ("Soluciones Stock","🧪"), ("Stock Reactivos","🔬"), ("Recetas de Medios","📖"), ("Imprimir Etiquetas","🖨")
+    ("Soluciones Stock","🧪"), ("Stock Reactivos","🔬"), ("Recetas de Medios","📖"),
+    ("Imprimir Etiquetas","🖨"), ("Planning","📅")
 ]
 cols = st.columns(4)
 if 'choice' not in st.session_state:
@@ -150,7 +151,6 @@ elif choice == "Consultar Stock":
     if not inv_df.empty:
         cod_edit = st.selectbox("Selecciona el lote a editar o borrar", inv_df["Código"])
         row_idx = inv_df[inv_df["Código"] == cod_edit].index[0]
-        # Mostrar formulario de edición
         with st.form("Editar lote"):
             col1, col2 = st.columns(2)
             with col1:
@@ -298,3 +298,29 @@ elif choice == "Imprimir Etiquetas":
             st.image(lbl)
             pdf_buf=BytesIO(); lbl.convert("RGB").save(pdf_buf,format="PDF"); pdf_buf.seek(0)
             st.download_button("Descargar etiqueta (PDF)",pdf_buf,file_name=f"etiqueta_{cod_imp}.pdf",mime="application/pdf")
+
+# --- NUEVA SECCIÓN PLANNING ---
+elif choice == "Planning":
+    st.header("📅 Planning de Propagación")
+    st.info("Sube tu archivo Excel con las variedades a propagar. Columnas requeridas: 'Variedad' y 'Plantas'.")
+    uploaded_planning = st.file_uploader("Selecciona el archivo Excel de planeación", type=["xlsx"])
+    receta_por_variedad = {
+        "manila": "AR2",
+        "madeira": "AR6",
+        "maldiva": "AR5",
+        "zarzamora": "ZR-1"
+    }
+    if uploaded_planning:
+        try:
+            df_plan = pd.read_excel(uploaded_planning)
+            df_plan.columns = [str(col).strip().lower() for col in df_plan.columns]
+            if "variedad" in df_plan.columns and "plantas" in df_plan.columns:
+                df_plan["receta"] = df_plan["variedad"].str.lower().map(receta_por_variedad)
+                df_plan["frascos necesarios"] = (df_plan["plantas"] / 40).apply(lambda x: int(x) if x==int(x) else int(x)+1)
+                st.success("Planeación cargada correctamente.")
+                st.dataframe(df_plan[["variedad", "plantas", "receta", "frascos necesarios"]], use_container_width=True)
+                st.download_button("Descargar Planning (CSV)", df_plan.to_csv(index=False).encode("utf-8"), file_name="planning_con_recetas.csv")
+            else:
+                st.error("El archivo debe tener columnas 'Variedad' y 'Plantas'.")
+        except Exception as e:
+            st.error(f"Error al procesar el archivo: {e}")
