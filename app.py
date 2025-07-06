@@ -94,9 +94,9 @@ if os.path.exists(REC_FILE):
 st.title("Control de Medios de Cultivo InVitRo")
 st.markdown("---")
 menu = [
-    ("Registrar Lote","📋"),("Consultar Stock","📦"),("Inventario Completo","🔍"),
-    ("Incubación","⏱"),("Baja Inventario","⚠️"),("Retorno Medio Nutritivo","🔄"),
-    ("Soluciones Stock","🧪"),("Stock Reactivos","🔬"),("Recetas de Medios","📖"),("Imprimir Etiquetas","🖨")
+    ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Inventario Completo","🔍"),
+    ("Incubación","⏱"), ("Baja Inventario","⚠️"), ("Retorno Medio Nutritivo","🔄"),
+    ("Soluciones Stock","🧪"), ("Stock Reactivos","🔬"), ("Recetas de Medios","📖"), ("Imprimir Etiquetas","🖨")
 ]
 cols = st.columns(4)
 if 'choice' not in st.session_state:
@@ -107,7 +107,7 @@ for i, (lbl, icn) in enumerate(menu):
 choice = st.session_state.choice
 st.markdown("---")
 
-# --- Funciones para guardar ---
+# --- Guardar cambios ---
 def save_inventory(): inv_df.to_csv(INV_FILE, index=False)
 def save_solutions(): sol_df.to_csv(SOL_FILE, index=False)
 def save_history(): mov_df.to_csv(HIST_FILE, index=False)
@@ -132,8 +132,10 @@ if choice == "Registrar Lote":
         code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
         inv_df.loc[len(inv_df)] = [code, year, receta, solucion, equipo, semana, dia, prep,
                                    frascos, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()]
-        save_inventory(); mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Entrada", code, frascos, f"Equipo: {equipo}"]
-        save_history(); st.success(f"Lote {code} registrado.")
+        save_inventory()
+        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Entrada", code, frascos, f"Equipo: {equipo}"]
+        save_history()
+        st.success(f"Lote {code} registrado.")
 
 # --- Consultar Stock ---
 elif choice == "Consultar Stock":
@@ -145,13 +147,15 @@ elif choice == "Consultar Stock":
 elif choice == "Inventario Completo":
     st.header("🔍 Inventario Completo")
     st.dataframe(inv_df, use_container_width=True)
-    st.markdown("---"); st.subheader("📜 Histórico de Movimientos")
+    st.markdown("---")
+    st.subheader("📜 Histórico de Movimientos")
     st.dataframe(mov_df, use_container_width=True)
 
 # --- Incubación ---
 elif choice == "Incubación":
     st.header("⏱ Incubación")
-    df_inc = inv_df.copy(); df_inc["Fecha"] = pd.to_datetime(df_inc["Fecha"])
+    df_inc = inv_df.copy()
+    df_inc["Fecha"] = pd.to_datetime(df_inc["Fecha"])
     df_inc["Días incubación"] = (pd.to_datetime(date.today()) - df_inc["Fecha"]).dt.days
     def hl(r): d=r["Días incubación"]; return (["background-color: yellow"]*len(r) if d<6 else ["background-color: lightgreen"]*len(r) if d<=28 else ["background-color: red"]*len(r))
     st.dataframe(df_inc.style.apply(hl, axis=1).format({"Días incubación":"{:.0f}"}), use_container_width=True)
@@ -159,69 +163,26 @@ elif choice == "Incubación":
 # --- Baja Inventario ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
-    motivo=st.radio("Motivo",["Consumo","Merma"]); codigos=inv_df['Código'].tolist()+sol_df['Código_Solución'].tolist()
-    sel=st.selectbox("Selecciona código",codigos); cantidad=st.number_input("Cantidad de frascos a dar de baja",1,999,value=1)
-    tipo_merma=st.selectbox("Tipo de Merma",["","Contaminación","Ruptura","Evaporación","Falla eléctrica","Interrupción suministro agua","Otro"]) if motivo=="Merma" else ""
+    motivo = st.radio("Motivo", ["Consumo", "Merma"])
+    codigos = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
+    sel = st.selectbox("Selecciona código", codigos)
+    cantidad = st.number_input("Cantidad de frascos a dar de baja", 1, 999, value=1)
+    tipo_merma = st.selectbox("Tipo de Merma", ["", "Contaminación", "Ruptura", "Evaporación", "Falla eléctrica", "Interrupción suministro agua", "Otro"]) if motivo == "Merma" else ""
     if st.button("Aplicar baja"):
-        det=f"Cantidad frascos: {cantidad}" + (f"; Merma: {tipo_merma}" if motivo=="Merma" else "")
-        mov_df.loc[len(mov_df)]=[datetime.now().isoformat(),f"Baja {motivo}",sel,cantidad,det]; save_history()
+        det = f"Cantidad frascos: {cantidad}" + (f"; Merma: {tipo_merma}" if motivo == "Merma" else "")
+        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), f"Baja {motivo}", sel, cantidad, det]
+        save_history()
         if sel in inv_df['Código'].values:
-            idx=inv_df[inv_df['Código']==sel].index[0]; inv_df.at[idx,'frascos']=max(0,int(inv_df.at[idx,'frascos'])-cantidad); save_inventory()
+            idx = inv_df[inv_df['Código'] == sel].index[0]
+            inv_df.at[idx, 'frascos'] = max(0, int(inv_df.at[idx, 'frascos']) - cantidad)
+            save_inventory()
         else:
-            idx=sol_df[sol_df['Código_Solución']==sel].index[0]; sol_df.at[idx,'Cantidad']=max(0,float(sol_df.at[idx,'Cantidad'])-cantidad); save_solutions()
+            idx = sol_df[sol_df['Código_Solución'] == sel].index[0]
+            sol_df.at[idx, 'Cantidad'] = max(0, float(sol_df.at[idx, 'Cantidad']) - cantidad)
+            save_solutions()
         st.success(f"{motivo} aplicado a {sel}.")
 
 # --- Retorno Medio Nutritivo ---
 elif choice == "Retorno Medio Nutritivo":
     st.header("🔄 Retorno Medio Nutritivo")
-    sel=st.selectbox("Selecciona lote",inv_df['Código']); cant_retor=st.number_input("Cantidad de frascos a retornar",1,999,value=1)
-    if st.button("Aplicar retorno"):
-        idx=inv_df[inv_df['Código']==sel].index[0]; inv_df.at[idx,'frascos']=int(inv_df.at[idx,'frascos'])+cant_retor; save_inventory()
-        mov_df.loc[len(mov_df)]=[datetime.now().isoformat(),"Retorno",sel,cant_retor,""]; save_history(); st.success(f"Retorno de {cant_retor} frascos para {sel} aplicado.")
-
-# --- Soluciones Stock ---
-elif choice == "Soluciones Stock":
-    st.header("🧪 Gestionar Soluciones Stock")
-    c1,c2=st.columns(2)
-    with c1:
-        fsol=st.date_input("Fecha",date.today()); csol=st.number_input("Cantidad (L)",0.0,format="%.2f"); cods=st.text_input("Código Solución")
-    with c2:
-        resp=st.text_input("Responsable"); reg=st.text_input("Regulador"); obs=st.text_area("Observaciones")
-    if st.button("Registrar solución"):
-        sol_df.loc[len(sol_df)]=[fsol.isoformat(),csol,cods,resp,reg,obs]; save_solutions()
-        mov_df.loc[len(mov_df)]=[datetime.now().isoformat(),"Stock Solución",cods,csol,f"Resp:{resp}"]; save_history(); st.success(f"Solución {cods} registrada.")
-    st.markdown("---"); st.subheader("📋 Inventario de Soluciones"); st.dataframe(sol_df,use_container_width=True)
-    st.download_button("Descargar Soluciones (CSV)",sol_df.to_csv(index=False).encode("utf-8"),file_name="soluciones_stock.csv")
-
-# --- Stock Reactivos ---
-elif choice == "Stock Reactivos":
-    st.header("🔬 Stock de Reactivos")
-    uploaded = st.file_uploader("Sube tu Excel de reactivos", type=["xlsx","xls"])
-    if uploaded:
-        try:
-            df_reac = pd.read_excel(uploaded)
-            st.dataframe(df_reac, use_container_width=True)
-        except Exception as e:
-            st.error(f"Error al leer el archivo: {e}")
-
-# --- Recetas de Medios ---
-elif choice == "Recetas de Medios":
-    st.header("📖 Recetas de Medios")
-    if recipes:
-        for name, df in recipes.items(): st.subheader(name); st.dataframe(df, use_container_width=True)
-    else: st.info("No se encontró el archivo de recetas.")
-
-# --- Imprimir Etiquetas ---
-elif choice == "Imprimir Etiquetas":
-    st.header("🖨 Imprimir Etiquetas")
-    if inv_df.empty:
-        st.info("No hay lotes registrados aún.")
-    else:
-        cod_imp = st.selectbox("Selecciona lote", inv_df['Código'])
-        if st.button("Generar etiqueta"):
-            row = inv_df[inv_df['Código']==cod_imp].iloc[0]
-            info=[f"Código: {row['Código']}",f"Receta: {row['Receta']}",f"Solución: {row['Solución']}",f"Fecha: {row['Fecha']}"]
-            buf=make_qr(cod_imp); lbl=make_label(info,buf)
-            st.image(lbl)
-            pdf_buf=BytesIO(); lbl.convert("RGB").save(pdf_buf,format="PDF"); pdf_buf.seek(0)
-            st.download_button("Descargar etiqueta (PDF)",pdf_buf,file_name=f"etiqueta_{cod_imp}.pdf",mime="application/pdf")
+    sel = st.selectbox("Selecciona lote
