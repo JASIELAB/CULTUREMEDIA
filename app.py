@@ -6,7 +6,6 @@ from datetime import date, datetime
 from PIL import Image, ImageDraw, ImageFont
 import os
 
-# --- Configuración de página ---
 st.set_page_config(page_title="Medios Cultivo", layout="wide")
 
 # --- Logo en esquina ---
@@ -146,6 +145,55 @@ elif choice == "Consultar Stock":
     st.header("📦 Consultar Stock")
     st.dataframe(inv_df, use_container_width=True)
     st.download_button("Descargar Inventario (CSV)", inv_df.to_csv(index=False).encode("utf-8"), file_name="inventario_medios.csv")
+
+    st.markdown("### Editar o borrar lote")
+    if not inv_df.empty:
+        cod_edit = st.selectbox("Selecciona el lote a editar o borrar", inv_df["Código"])
+        row_idx = inv_df[inv_df["Código"] == cod_edit].index[0]
+        # Mostrar formulario de edición
+        with st.form("Editar lote"):
+            col1, col2 = st.columns(2)
+            with col1:
+                anio = st.text_input("Año", inv_df.at[row_idx, "Año"])
+                receta = st.text_input("Receta", inv_df.at[row_idx, "Receta"])
+                solucion = st.text_input("Solución", inv_df.at[row_idx, "Solución"])
+                equipo = st.text_input("Equipo", inv_df.at[row_idx, "Equipo"])
+                semana = st.text_input("Semana", inv_df.at[row_idx, "Semana"])
+                dia = st.text_input("Día", inv_df.at[row_idx, "Día"])
+                prep = st.text_input("Preparación", inv_df.at[row_idx, "Preparación"])
+                frascos = st.text_input("frascos", inv_df.at[row_idx, "frascos"])
+            with col2:
+                ph_aj = st.text_input("pH_Ajustado", inv_df.at[row_idx, "pH_Ajustado"])
+                ph_fin = st.text_input("pH_Final", inv_df.at[row_idx, "pH_Final"])
+                ce = st.text_input("CE_Final", inv_df.at[row_idx, "CE_Final"])
+                litros = st.text_input("Litros_preparar", inv_df.at[row_idx, "Litros_preparar"])
+                dosif = st.text_input("Dosificar_por_frasco", inv_df.at[row_idx, "Dosificar_por_frasco"])
+                fecha = st.text_input("Fecha", inv_df.at[row_idx, "Fecha"])
+            editar = st.form_submit_button("Guardar cambios")
+            borrar = st.form_submit_button("Borrar lote", type="secondary")
+
+        if editar:
+            inv_df.at[row_idx, "Año"] = anio
+            inv_df.at[row_idx, "Receta"] = receta
+            inv_df.at[row_idx, "Solución"] = solucion
+            inv_df.at[row_idx, "Equipo"] = equipo
+            inv_df.at[row_idx, "Semana"] = semana
+            inv_df.at[row_idx, "Día"] = dia
+            inv_df.at[row_idx, "Preparación"] = prep
+            inv_df.at[row_idx, "frascos"] = frascos
+            inv_df.at[row_idx, "pH_Ajustado"] = ph_aj
+            inv_df.at[row_idx, "pH_Final"] = ph_fin
+            inv_df.at[row_idx, "CE_Final"] = ce
+            inv_df.at[row_idx, "Litros_preparar"] = litros
+            inv_df.at[row_idx, "Dosificar_por_frasco"] = dosif
+            inv_df.at[row_idx, "Fecha"] = fecha
+            save_inventory()
+            st.success("Lote editado correctamente. Refresca o cambia de sección para ver los cambios.")
+        if borrar:
+            inv_df.drop(index=row_idx, inplace=True)
+            inv_df.reset_index(drop=True, inplace=True)
+            save_inventory()
+            st.success("Lote borrado correctamente. Refresca o cambia de sección para ver los cambios.")
 
 elif choice == "Inventario Completo":
     st.header("🔍 Inventario Completo")
