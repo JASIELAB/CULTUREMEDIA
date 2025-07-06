@@ -8,7 +8,7 @@ import os
 
 st.set_page_config(page_title="Medios Cultivo", layout="wide")
 
-# Logo
+# --- Logo en esquina ---
 logo_path = "plablue.png"
 if os.path.isfile(logo_path):
     try:
@@ -19,6 +19,7 @@ if os.path.isfile(logo_path):
 else:
     st.warning(f"Logo '{logo_path}' no encontrado.")
 
+# --- Helpers ---
 def make_qr(text: str) -> BytesIO:
     img = qrcode.make(text)
     buf = BytesIO()
@@ -47,6 +48,7 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
 
+# --- Archivos y columnas ---
 INV_FILE = "inventario_medios.csv"
 SOL_FILE = "soluciones_stock.csv"
 HIST_FILE = "movimientos.csv"
@@ -74,6 +76,19 @@ inv_df = load_df(INV_FILE, inv_cols)
 sol_df = load_df(SOL_FILE, sol_cols)
 mov_df = load_df(HIST_FILE, hist_cols)
 
+# --- Restaurar 2 medios de cultivo si el archivo está vacío ---
+if inv_df.empty:
+    if st.button("Restaurar 2 medios de cultivo de ejemplo"):
+        ejemplos = [
+            ["24MSZ271-1",2024,"MS","A1","Preparadora Alpha",27,1,1,50,5.8,5.7,2.10,10,0.50,"2024-07-03"],
+            ["24MSZ271-2",2024,"MS","A1","Preparadora Alpha",27,2,1,48,5.8,5.7,2.10,10,0.50,"2024-07-03"]
+        ]
+        for row in ejemplos:
+            inv_df.loc[len(inv_df)] = row
+        inv_df.to_csv(INV_FILE, index=False)
+        st.success("Se restauraron los dos medios de cultivo de ejemplo. Refresca la página para verlos.")
+
+# --- Recetas ---
 recipes = {}
 if os.path.exists(REC_FILE):
     xls = pd.ExcelFile(REC_FILE)
