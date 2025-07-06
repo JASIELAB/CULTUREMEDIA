@@ -6,6 +6,7 @@ from datetime import date, datetime
 from PIL import Image, ImageDraw, ImageFont
 import os
 
+# --- Configuración de página ---
 st.set_page_config(page_title="Medios Cultivo", layout="wide")
 
 # --- Logo en esquina ---
@@ -76,17 +77,9 @@ inv_df = load_df(INV_FILE, inv_cols)
 sol_df = load_df(SOL_FILE, sol_cols)
 mov_df = load_df(HIST_FILE, hist_cols)
 
-# --- Restaurar 2 medios de cultivo si el archivo está vacío ---
-if inv_df.empty:
-    if st.button("Restaurar 2 medios de cultivo de ejemplo"):
-        ejemplos = [
-            ["24MSZ271-1",2024,"MS","A1","Preparadora Alpha",27,1,1,50,5.8,5.7,2.10,10,0.50,"2024-07-03"],
-            ["24MSZ271-2",2024,"MS","A1","Preparadora Alpha",27,2,1,48,5.8,5.7,2.10,10,0.50,"2024-07-03"]
-        ]
-        for row in ejemplos:
-            inv_df.loc[len(inv_df)] = row
-        inv_df.to_csv(INV_FILE, index=False)
-        st.success("Se restauraron los dos medios de cultivo de ejemplo. Refresca la página para verlos.")
+def save_inventory(): inv_df.to_csv(INV_FILE, index=False)
+def save_solutions(): sol_df.to_csv(SOL_FILE, index=False)
+def save_history(): mov_df.to_csv(HIST_FILE, index=False)
 
 # --- Recetas ---
 recipes = {}
@@ -99,6 +92,7 @@ if os.path.exists(REC_FILE):
             sub.columns = ["Componente","Fórmula","Concentración"]
             recipes[sheet] = sub
 
+# --- Interfaz ---
 st.title("Control de Medios de Cultivo InVitRo")
 st.markdown("---")
 menu = [
@@ -114,10 +108,6 @@ for i, (lbl, icn) in enumerate(menu):
         st.session_state.choice = lbl
 choice = st.session_state.choice
 st.markdown("---")
-
-def save_inventory(): inv_df.to_csv(INV_FILE, index=False)
-def save_solutions(): sol_df.to_csv(SOL_FILE, index=False)
-def save_history(): mov_df.to_csv(HIST_FILE, index=False)
 
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
@@ -218,7 +208,6 @@ elif choice == "Soluciones Stock":
     st.dataframe(sol_df, use_container_width=True)
     st.download_button("Descargar Soluciones (CSV)", sol_df.to_csv(index=False).encode("utf-8"), file_name="soluciones_stock.csv")
 
-# -------- STOCK REACTIVOS NUEVA SECCIÓN ---------
 elif choice == "Stock Reactivos":
     st.header("🔬 Stock de Reactivos")
     st.info("Sube tu archivo Excel (.xlsx) de inventario de reactivos. Se mostrará la tabla completa en pantalla.")
