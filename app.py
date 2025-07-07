@@ -210,15 +210,17 @@ elif choice == "Incubación":
     def hl(r): d=r["Días incubación"]; return (["background-color: yellow"]*len(r) if d<6 else ["background-color: lightgreen"]*len(r) if d<=28 else ["background-color: red"]*len(r))
     st.dataframe(df_inc.style.apply(hl, axis=1).format({"Días incubación":"{:.0f}"}), use_container_width=True)
 
+# --- BAJA DE INVENTARIO CON FECHA DE SALIDA ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
     motivo = st.radio("Motivo", ["Consumo", "Merma"])
     codigos = inv_df['Código'].tolist() + sol_df['Código_Solución'].tolist()
     sel = st.selectbox("Selecciona código", codigos)
     cantidad = st.number_input("Cantidad de frascos a dar de baja", 1, 999, value=1)
+    fecha_salida = st.date_input("Fecha de salida", value=date.today())
     tipo_merma = st.selectbox("Tipo de Merma", ["", "Contaminación", "Ruptura", "Evaporación", "Falla eléctrica", "Interrupción suministro agua", "Otro"]) if motivo == "Merma" else ""
     if st.button("Aplicar baja"):
-        det = f"Cantidad frascos: {cantidad}" + (f"; Merma: {tipo_merma}" if motivo == "Merma" else "")
+        det = f"Cantidad frascos: {cantidad}; Fecha salida: {fecha_salida}" + (f"; Merma: {tipo_merma}" if motivo == "Merma" else "")
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), f"Baja {motivo}", sel, cantidad, det]
         save_history()
         if sel in inv_df['Código'].values:
