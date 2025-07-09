@@ -1,7 +1,7 @@
 streamlit
 pandas
-openpyxl
+gspread
+google-auth
 qrcode
 Pillow
-fpdf
-streamlit-option-menu==0.3.4
+openpyxl
