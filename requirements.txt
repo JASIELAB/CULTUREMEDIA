@@ -5,3 +5,4 @@ qrcode
 Pillow
 fpdf
 streamlit-option-menu==0.3.4
+pip install gspread google-auth
