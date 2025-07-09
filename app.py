@@ -1,49 +1,25 @@
 import streamlit as st
 import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
 import qrcode
 from io import BytesIO
 from datetime import date, datetime
 from PIL import Image, ImageDraw, ImageFont
+import os
 
-# --- CONFIGURACIÓN GOOGLE SHEETS ---
-SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-SERVICE_ACCOUNT_FILE = 'nombre_de_tu_archivo.json'  # Cambia por el nombre real de tu archivo .json
-SHEET_INVENTARIO = "INVENTARIO_MEDIOS"
-SHEET_SOLUCIONES = "SOLUCIONES_STOCK"
-SHEET_MOVIMIENTOS = "MOVIMIENTOS"
-SHEET_RECETAS = "RECETAS"
+st.set_page_config(page_title="Medios Cultivo", layout="wide")
 
-# --- CONEXIÓN ---
-creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPE)
-gc = gspread.authorize(creds)
+# --- Logo en esquina ---
+logo_path = "plablue.png"
+if os.path.isfile(logo_path):
+    try:
+        logo = Image.open(logo_path)
+        st.image(logo, width=120)
+    except Exception as e:
+        st.warning(f"Error al cargar logo: {e}")
+else:
+    st.warning(f"Logo '{logo_path}' no encontrado.")
 
-def get_ws(sheet_name):
-    sh = gc.open(sheet_name)
-    return sh.sheet1
-
-def leer_df(sheet_name):
-    ws = get_ws(sheet_name)
-    data = ws.get_all_records()
-    return pd.DataFrame(data)
-
-def guardar_df(sheet_name, df):
-    ws = get_ws(sheet_name)
-    ws.clear()
-    if not df.empty:
-        ws.update([df.columns.values.tolist()] + df.values.tolist())
-
-# --- Columnas estándar ---
-inv_cols = [
-    "Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
-    "frascos","pH_Ajustado","pH_Final","CE_Final",
-    "Litros_preparar","Dosificar_por_frasco","Fecha"
-]
-sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
-hist_cols = ["Timestamp","Tipo","Código","Cantidad","Detalles"]
-
-# --- Helpers para etiquetas ---
+# --- Helpers ---
 def make_qr(text: str) -> BytesIO:
     img = qrcode.make(text)
     buf = BytesIO()
@@ -72,24 +48,60 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
     return img
 
-# --- Carga de datos desde Google Sheets ---
-def load_or_empty(sheet_name, cols):
-    try:
-        df = leer_df(sheet_name)
-        for c in cols:
-            if c not in df.columns:
-                df[c] = ''
-        return df[cols]
-    except Exception:
-        return pd.DataFrame(columns=cols)
+# --- Columnas estándar ---
+inv_cols = [
+    "Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
+    "frascos","pH_Ajustado","pH_Final","CE_Final",
+    "Litros_preparar","Dosificar_por_frasco","Fecha"
+]
+sol_cols = ["Fecha","Cantidad","Código_Solución","Responsable","Regulador","Observaciones"]
+hist_cols = ["Timestamp","Tipo","Código","Cantidad","Detalles"]
 
-inv_df = load_or_empty(SHEET_INVENTARIO, inv_cols)
-sol_df = load_or_empty(SHEET_SOLUCIONES, sol_cols)
-mov_df = load_or_empty(SHEET_MOVIMIENTOS, hist_cols)
-recipes = {}  # Puedes cargar recetas desde otro Google Sheet o subir el archivo excel si prefieres
+INV_FILE = "inventario_medios.csv"
+SOL_FILE = "soluciones_stock.csv"
+HIST_FILE = "movimientos.csv"
+REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
 
-# --- Interfaz principal ---
-st.title("Control de Medios de Cultivo InVitRo (con Google Sheets)")
+def load_df(path, cols):
+    if os.path.exists(path):
+        df = pd.read_csv(path, dtype=str)
+    else:
+        df = pd.DataFrame(columns=cols)
+    for c in cols:
+        if c not in df.columns:
+            df[c] = ''
+    return df[cols]
+
+inv_df = load_df(INV_FILE, inv_cols)
+sol_df = load_df(SOL_FILE, sol_cols)
+mov_df = load_df(HIST_FILE, hist_cols)
+
+def save_inventory(): inv_df.to_csv(INV_FILE, index=False)
+def save_solutions(): sol_df.to_csv(SOL_FILE, index=False)
+def save_history(): mov_df.to_csv(HIST_FILE, index=False)
+
+# --- Botón para descargar inventario_medios.csv vacío ---
+st.sidebar.markdown("### Utilidades")
+df_vacio = pd.DataFrame(columns=inv_cols)
+st.sidebar.download_button(
+    "Descargar inventario_medios.csv vacío",
+    df_vacio.to_csv(index=False).encode('utf-8'),
+    file_name="inventario_medios.csv"
+)
+
+# --- Recetas ---
+recipes = {}
+if os.path.exists(REC_FILE):
+    xls = pd.ExcelFile(REC_FILE)
+    for sheet in xls.sheet_names:
+        df = xls.parse(sheet)
+        if df.shape[0] > 9:
+            sub = df.iloc[9:, :3].dropna(how='all').copy()
+            sub.columns = ["Componente","Fórmula","Concentración"]
+            recipes[sheet] = sub
+
+# --- Interfaz ---
+st.title("Control de Medios de Cultivo InVitRo")
 st.markdown("---")
 menu = [
     ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Inventario Completo","🔍"),
@@ -109,7 +121,7 @@ st.markdown("---")
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     year = st.number_input("Año", 2000, 2100, value=date.today().year)
-    receta = st.text_input("Receta")
+    receta = st.selectbox("Receta", list(recipes.keys()))
     solucion = st.text_input("Solución stock")
     equipo = st.selectbox("Equipo", ["Preparadora Alpha","Preparadora Beta"])
     semana = st.number_input("Semana", 1, 52, value=int(datetime.today().strftime('%U')))
@@ -125,9 +137,9 @@ if choice == "Registrar Lote":
         code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
         inv_df.loc[len(inv_df)] = [code, year, receta, solucion, equipo, semana, dia, prep,
                                    frascos, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()]
-        guardar_df(SHEET_INVENTARIO, inv_df)
+        save_inventory()
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Entrada", code, frascos, f"Equipo: {equipo}"]
-        guardar_df(SHEET_MOVIMIENTOS, mov_df)
+        save_history()
         st.success(f"Lote {code} registrado.")
 
 elif choice == "Consultar Stock":
@@ -175,12 +187,12 @@ elif choice == "Consultar Stock":
             inv_df.at[row_idx, "Litros_preparar"] = litros
             inv_df.at[row_idx, "Dosificar_por_frasco"] = dosif
             inv_df.at[row_idx, "Fecha"] = fecha
-            guardar_df(SHEET_INVENTARIO, inv_df)
+            save_inventory()
             st.success("Lote editado correctamente. Refresca o cambia de sección para ver los cambios.")
         if borrar:
             inv_df.drop(index=row_idx, inplace=True)
             inv_df.reset_index(drop=True, inplace=True)
-            guardar_df(SHEET_INVENTARIO, inv_df)
+            save_inventory()
             st.success("Lote borrado correctamente. Refresca o cambia de sección para ver los cambios.")
 
 elif choice == "Inventario Completo":
@@ -198,6 +210,7 @@ elif choice == "Incubación":
     def hl(r): d=r["Días incubación"]; return (["background-color: yellow"]*len(r) if d<6 else ["background-color: lightgreen"]*len(r) if d<=28 else ["background-color: red"]*len(r))
     st.dataframe(df_inc.style.apply(hl, axis=1).format({"Días incubación":"{:.0f}"}), use_container_width=True)
 
+# --- BAJA DE INVENTARIO CON FECHA DE SALIDA ---
 elif choice == "Baja Inventario":
     st.header("⚠️ Baja de Inventario")
     motivo = st.radio("Motivo", ["Consumo", "Merma"])
@@ -209,15 +222,15 @@ elif choice == "Baja Inventario":
     if st.button("Aplicar baja"):
         det = f"Cantidad frascos: {cantidad}; Fecha salida: {fecha_salida}" + (f"; Merma: {tipo_merma}" if motivo == "Merma" else "")
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), f"Baja {motivo}", sel, cantidad, det]
-        guardar_df(SHEET_MOVIMIENTOS, mov_df)
+        save_history()
         if sel in inv_df['Código'].values:
             idx = inv_df[inv_df['Código'] == sel].index[0]
             inv_df.at[idx, 'frascos'] = max(0, int(inv_df.at[idx, 'frascos']) - cantidad)
-            guardar_df(SHEET_INVENTARIO, inv_df)
+            save_inventory()
         else:
             idx = sol_df[sol_df['Código_Solución'] == sel].index[0]
             sol_df.at[idx, 'Cantidad'] = max(0, float(sol_df.at[idx, 'Cantidad']) - cantidad)
-            guardar_df(SHEET_SOLUCIONES, sol_df)
+            save_solutions()
         st.success(f"{motivo} aplicado a {sel}.")
 
 elif choice == "Retorno Medio Nutritivo":
@@ -227,9 +240,9 @@ elif choice == "Retorno Medio Nutritivo":
     if st.button("Aplicar retorno"):
         idx = inv_df[inv_df['Código'] == sel].index[0]
         inv_df.at[idx, 'frascos'] = int(inv_df.at[idx, 'frascos']) + cant_retor
-        guardar_df(SHEET_INVENTARIO, inv_df)
+        save_inventory()
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Retorno", sel, cant_retor, ""]
-        guardar_df(SHEET_MOVIMIENTOS, mov_df)
+        save_history()
         st.success(f"Retorno de {cant_retor} frascos para {sel} aplicado.")
 
 elif choice == "Soluciones Stock":
@@ -245,9 +258,9 @@ elif choice == "Soluciones Stock":
         obs = st.text_area("Observaciones")
     if st.button("Registrar solución"):
         sol_df.loc[len(sol_df)] = [fsol.isoformat(), csol, cods, resp, reg, obs]
-        guardar_df(SHEET_SOLUCIONES, sol_df)
+        save_solutions()
         mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Stock Solución", cods, csol, f"Resp:{resp}"]
-        guardar_df(SHEET_MOVIMIENTOS, mov_df)
+        save_history()
         st.success(f"Solución {cods} registrada.")
     st.markdown("---")
     st.subheader("📋 Inventario de Soluciones")
@@ -267,20 +280,12 @@ elif choice == "Stock Reactivos":
 
 elif choice == "Recetas de Medios":
     st.header("📖 Recetas de Medios")
-    st.info("Puedes cargar tus recetas desde un archivo Excel o conectarlas a otra hoja de Google Sheets.")
-    uploaded_file = st.file_uploader("Sube el archivo Excel de recetas", type=["xlsx"])
-    if uploaded_file:
-        try:
-            xls = pd.ExcelFile(uploaded_file)
-            for sheet in xls.sheet_names:
-                df = xls.parse(sheet)
-                if df.shape[0] > 9:
-                    sub = df.iloc[9:, :3].dropna(how='all').copy()
-                    sub.columns = ["Componente","Fórmula","Concentración"]
-                    st.subheader(sheet)
-                    st.dataframe(sub, use_container_width=True)
-        except Exception as e:
-            st.error(f"Error al cargar el archivo: {e}")
+    if recipes:
+        for name, df in recipes.items():
+            st.subheader(name)
+            st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No se encontró el archivo de recetas.")
 
 elif choice == "Imprimir Etiquetas":
     st.header("🖨 Imprimir Etiquetas")
@@ -296,6 +301,7 @@ elif choice == "Imprimir Etiquetas":
             pdf_buf=BytesIO(); lbl.convert("RGB").save(pdf_buf,format="PDF"); pdf_buf.seek(0)
             st.download_button("Descargar etiqueta (PDF)",pdf_buf,file_name=f"etiqueta_{cod_imp}.pdf",mime="application/pdf")
 
+# --- NUEVA SECCIÓN PLANNING ---
 elif choice == "Planning":
     st.header("📅 Planning de Propagación")
     st.info("Sube tu archivo Excel con las variedades a propagar. Columnas requeridas: 'Variedad' y 'Plantas'.")
