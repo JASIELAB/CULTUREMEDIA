@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "inventariocultivo",
+  "private_key_id": "d70ca41425a4838239f4c32450c0dd7e267c5fcb",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDF6by/nKK2Hn4p\n19Q2WNQLs6hvWs5TfY8qi4/O2jb/SzW3hF/GoTXSHl+o5Mg+WxSgPyCkwM9Jtwfs\nrxnhQvEseuvVtMlhT7pULUrHHDeRxuw9d2goIIdSs6bo6f1sxOAoO/v69DV8xav+\nCZLN5iTplDGxcEDGxZV3UgXmjGKQO/W20dfMX2ReROJWeNMl9OAtKvnORRO78q6n\n+/W9xVdR6kX8/xEPnbZVNxms1UTy+eVXUVK+FtmlIvlBMjo4NIZiYgIBFnHqMHgf\nkVHA9Ff3UvWcr20hXICXaeOMNmlaszBCaq+oexd/dLT4SyLzxkx+nSrhV2SJACRK\naRPflTLlAgMBAAECggEAAcxqaOiv7kmG34ixPBtrblNY9kaJazxeMnhVwqmuUrVe\nCWBzdz/1HwdAhYMOuXQd/aUG/gaChmOholwYjI4p2DvbD+YaA7hepYxK7h0qpBwM\ncKYcP8EaJGDryLWewNVlnr8Xd46SWIcIqt1u9lAJ+yq/XjD6gik+1D+lPE3GuxN2\n/OcKBE6THXlN6fbo28chRRAf+4HRMbZYn5tiAH0PCylvQnw7ngdHl08WbFr0IzL1\nsTmlzh6ev5kazIvi603g9wQk6lYhx8Uv9GHE21+08Z0vj0KnTix9Njn32eURiq88\nkOkw2CZEfzapQU3vXqckNXj7YhpMgbU4NPZVjiUIAQKBgQDndZG0UnydYh0KoMt+\nB7FHPAlbI8RC1IXyvdDr/KlJJLPObN3Lvdol/OiVWUMGLF0AoZmIN7ttO94/1kof\npO0iT/xomtkEAUCeAC9cM7zDXdXPnxTjSFu+sK7CIVqCLZRL0Eln0yWSsrCsGS7E\nKPFDjmOQXVvWCsZMMHu3+8jg4QKBgQDa5aIJM7WOmx2ZK5Rt8fJVzWErn8uYXbAf\nwXkOlfSE6WCaLTIiV2VyYm1LcYvrgptdLfpPNb6VrbnCc37gdqlH/FUB+xdceKoM\nRBYnr++ccBJsS1zf2CLWIYsMpwZduuxlh1hPqcaHyway6oofTcPBy/zdlWiq9LIk\nukSKG54ehQKBgCPGxnjK7zwceES2Sf33Dm3mV8PgqWtzEilNMcfoS/pkU+6qYTYm\n6FtK1mCPZY7EuLNqRyMJCk1+HYJciySNB6JwHqHEnZrC3swNV0S3Mow4Kt5mxoHD\nI3s8MCcNpMHObceyMEZ+GqasPCa91b64XWKF1dnwtEtHaxNHwzfTEV/BAoGAH9xa\nqGI5Y+dZ+IhqU1JrBmgdY58foC7KyuR7PU9ARvQ9FlPLv0nfPzXqWJfPWNkqyfY+\nP7c/5UNjDVWIOx2qaArnSKGGdfQuNBjY7K/j/W4mkFKr0vz/nRFGzvGksJHbhK+d\ngALjHbLEZ9hRgFruSk/pn0r28CMrpsLh5QQ+EI0CgYEAmSWNEEQFTgMBTe+opgZr\naK1A20pUTteMeLxQPTTLsnUAe7b/spS9KzgME2o+5ENqalOXqUZoONL7sq/Ani3R\n6V4O02xU1ctSkrT/ceJiSMUE/S8VXecmfUCTMxFu4FCPPS7R/Fjpnkf9d30MfR39\nk3VPAjCZT8I7KCKiW+OrhYw=\n-----END PRIVATE KEY-----\n",
+  "client_email": "streamlit-cultivo@inventariocultivo.iam.gserviceaccount.com",
+  "client_id": "109496159969576315113",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/streamlit-cultivo%40inventariocultivo.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
