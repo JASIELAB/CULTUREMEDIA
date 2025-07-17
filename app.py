@@ -10,7 +10,9 @@ import os
 INV_FILE  = "inventario_medios.csv"
 MOV_FILE  = "movimientos.csv"
 SOL_FILE  = "soluciones_stock.csv"
+REC_FILE  = "RECETAS_MEDIOS_ACTUAL_JUNIO251.xlsx"
 
+# Columnas
 inv_cols  = [
     "Código","Año","Receta","Solución","Equipo","Semana","Día","Preparación",
     "frascos","pH_Ajustado","pH_Final","CE_Final","Litros_preparar",
@@ -37,34 +39,16 @@ inv_df = load_df(INV_FILE, inv_cols)
 mov_df = load_df(MOV_FILE, mov_cols)
 sol_df = load_df(SOL_FILE, sol_cols)
 
-# --- Diccionario de recetas embebido en el código ---
-recipes = {
-    "MS": pd.DataFrame([
-        {"Componente": "Agar",     "Fórmula": "C14H24O9",  "Concentración": "0.8%"},
-        {"Componente": "Sacarosa","Fórmula": "C12H22O11", "Concentración": "3%"},
-        {"Componente": "Ca(NO3)2","Fórmula": "Ca(NO3)2",   "Concentración": "100 mg/L"},
-    ]),
-    "AR2": pd.DataFrame([
-        {"Componente": "Agar",    "Fórmula": "C14H24O9",  "Concentración": "0.7%"},
-        {"Componente": "Maltosa", "Fórmula": "C12H22O11", "Concentración": "2%"},
-        {"Componente": "KNO3",    "Fórmula": "KNO3",      "Concentración": "80 mg/L"},
-    ]),
-    "AR6": pd.DataFrame([
-        {"Componente": "Agar",     "Fórmula": "C14H24O9", "Concentración": "0.9%"},
-        {"Componente": "Glucosa",  "Fórmula": "C6H12O6",  "Concentración": "3.5%"},
-        {"Componente": "NH4NO3",   "Fórmula": "NH4NO3",   "Concentración": "90 mg/L"},
-    ]),
-    "AR5": pd.DataFrame([
-        {"Componente": "Agar",       "Fórmula": "C14H24O9", "Concentración": "1.0%"},
-        {"Componente": "Sacárido X", "Fórmula": "C6H12O6",  "Concentración": "2.5%"},
-        {"Componente": "MgSO4",      "Fórmula": "MgSO4",    "Concentración": "50 mg/L"},
-    ]),
-    "ZR-1": pd.DataFrame([
-        {"Componente": "Agar",       "Fórmula": "C14H24O9", "Concentración": "0.85%"},
-        {"Componente": "Dextrosa",   "Fórmula": "C6H12O6",  "Concentración": "3.2%"},
-        {"Componente": "FeSO4",      "Fórmula": "FeSO4",    "Concentración": "20 mg/L"},
-    ]),
-}
+# --- Carga de recetas desde Excel ---
+recipes = {}
+if os.path.exists(REC_FILE):
+    xls = pd.ExcelFile(REC_FILE)
+    for sheet in xls.sheet_names:
+        df0 = xls.parse(sheet)
+        if df0.shape[0] > 9:
+            sub = df0.iloc[9:,:3].dropna(how="all").copy()
+            sub.columns = ["Componente","Fórmula","Concentración"]
+            recipes[sheet] = sub
 
 # --- Helpers QR y etiquetas ---
 def make_qr(text):
@@ -227,15 +211,19 @@ elif choice == "Soluciones Stock":
 
 elif choice == "Recetas de Medios":
     st.header("📖 Recetas de Medios")
-    receta_sel = st.selectbox("Elige una receta", list(recipes.keys()))
-    df_rec = recipes[receta_sel]
-    st.dataframe(df_rec, use_container_width=True)
-    st.download_button(
-        "Descargar receta (CSV)",
-        df_rec.to_csv(index=False).encode("utf-8"),
-        file_name=f"receta_{receta_sel}.csv",
-        mime="text/csv"
-    )
+    if recipes:
+        recipe_sel = st.selectbox("Elige una receta", list(recipes.keys()))
+        df_rec = recipes[recipe_sel]
+        st.dataframe(df_rec, use_container_width=True)
+        csv = df_rec.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "Descargar receta (CSV)",
+            csv,
+            file_name=f"receta_{recipe_sel}.csv",
+            mime="text/csv"
+        )
+    else:
+        st.error(f"No encontré el archivo {REC_FILE} en el repo.")
 
 elif choice == "Imprimir Etiquetas":
     st.header("🖨 Imprimir Etiquetas")
