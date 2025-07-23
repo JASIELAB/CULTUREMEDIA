@@ -165,6 +165,7 @@ elif choice == "Consultar Stock":
         e_ce     = st.number_input("CE Final",0.0,20.0,format="%.2f",value=float(inv_df.at[idx,'CE_Final']))
         e_lit    = st.number_input("Litros a preparar",0.0,100.0,format="%.2f",value=float(inv_df.at[idx,'Litros_preparar']))
         e_dos    = st.number_input("Dosificar por frasco",0.0,10.0,format="%.2f",value=float(inv_df.at[idx,'Dosificar_por_frasco']))
+        e_fecha  = st.date_input("Fecha", value=pd.to_datetime(inv_df.at[idx,'Fecha']).date())
         if st.button("Guardar cambios"):
             inv_df.at[idx,'Año']                 = e_year
             inv_df.at[idx,'Receta']              = e_receta
