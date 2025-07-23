@@ -45,7 +45,7 @@ def make_label(info_lines, qr_buf, size=(250, 120)):
             bbox = draw.textbbox((5, y), line, font=font)
             th = bbox[3] - bbox[1]
         except AttributeError:
-            th = draw.textsize(line, font=font)[1]
+            th = font.getsize(line)[1]
         y += th + 2
     qr_img = Image.open(qr_buf).resize((80, 80))
     img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
@@ -91,7 +91,7 @@ if os.path.exists(REC_FILE):
     xls = pd.ExcelFile(REC_FILE)
     for sheet in xls.sheet_names:
         df = xls.parse(sheet)
-        if df.shape[0] > 0:
+        if not df.empty:
             sub = df.iloc[:, :3].dropna(how='all').copy()
             sub.columns = ["Componente", "Fórmula", "Concentración"]
             recipes[sheet] = sub
@@ -115,7 +115,9 @@ for i, (lbl, icn) in enumerate(menu):
 choice = st.session_state.choice
 st.markdown("---")
 
-# --- Secciones ---
+# ---------------------------
+# Sección: Registrar Lote
+# ---------------------------
 if choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     year = st.number_input("Año", 2000, 2100, value=date.today().year)
@@ -129,35 +131,99 @@ if choice == "Registrar Lote":
     ph_aj = st.number_input("pH ajustado", 0.0, 14.0, format="%.1f")
     ph_fin = st.number_input("pH final", 0.0, 14.0, format="%.1f")
     ce = st.number_input("CE final", 0.0, 20.0, format="%.2f")
-    litros = st.number_input("Litros a preparar", 0.0, 100.0, value=1.0, format="%.2f")
-    dosif = st.number_input("Dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f")
+    litros = st.number_input(
+        "Litros a preparar", 0.0, 100.0, value=1.0, format="%.2f"
+    )
+    dosif = st.number_input(
+        "Dosificar por frasco", 0.0, 10.0, value=0.0, format="%.2f"
+    )
     if st.button("Registrar lote"):
         code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
-        inv_df.loc[len(inv_df)] = [code, year, receta, solucion, equipo, semana, dia, prep,
-                                    frascos, ph_aj, ph_fin, ce, litros, dosif, date.today().isoformat()]
+        inv_df.loc[len(inv_df)] = [
+            code, year, receta, solucion, equipo, semana, dia, prep,
+            frascos, ph_aj, ph_fin, ce, litros, dosif,
+            date.today().isoformat()
+        ]
         save_df(INV_FILE, inv_df)
-        mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Entrada", code, frascos, f"Equipo: {equipo}"]
+        mov_df.loc[len(mov_df)] = [
+            datetime.now().isoformat(), "Entrada", code,
+            frascos, f"Equipo: {equipo}"
+        ]
         save_df(HIST_FILE, mov_df)
         st.success(f"Lote {code} registrado.")
 
+# ---------------------------
+# Sección: Consultar Stock / Editar
+# ---------------------------
 elif choice == "Consultar Stock":
     st.header("📦 Consultar Stock")
     st.dataframe(inv_df, use_container_width=True)
-    st.download_button("Descargar Inventario (CSV)", inv_df.to_csv(index=False).encode('utf-8'), file_name="inventario_medios.csv")
+    st.download_button(
+        "Descargar Inventario (CSV)",
+        inv_df.to_csv(index=False).encode('utf-8'),
+        file_name="inventario_medios.csv"
+    )
     st.markdown("---")
     st.subheader("✏️ Editar Lote")
     sel = st.selectbox("Selecciona lote a editar", inv_df['Código'])
     if sel:
         idx = inv_df[inv_df['Código'] == sel].index[0]
         e_year = st.number_input("Año", 2000, 2100, value=int(inv_df.at[idx, 'Año']))
-        e_receta = st.selectbox("Receta", list(recipes.keys()), index=list(recipes.keys()).index(inv_df.at[idx, 'Receta']))
+        e_receta = st.selectbox(
+            "Receta", list(recipes.keys()),
+            index=list(recipes.keys()).index(inv_df.at[idx, 'Receta'])
+        )
         e_sol = st.text_input("Solución stock", value=inv_df.at[idx, 'Solución'])
-        e_equip = st.selectbox("Equipo", ["Preparadora Alpha", "Preparadora Beta"], index=["Preparadora Alpha", "Preparadora Beta"].index(inv_df.at[idx, 'Equipo']))
+        e_equip = st.selectbox(
+            "Equipo", ["Preparadora Alpha","Preparadora Beta"],
+            index=["Preparadora Alpha","Preparadora Beta"].index(inv_df.at[idx, 'Equipo'])
+        )
         e_sem = st.number_input("Semana", 1, 52, value=int(inv_df.at[idx, 'Semana']))
         e_dia = st.number_input("Día", 1, 7, value=int(inv_df.at[idx, 'Día']))
-        e_prep = st.number_input("Preparación #", 1, 100, value=int(inv_df.at[idx, 'Preparación']))
-        e_frascos = st.number_input("Frascos", 1, 999, value=int(inv_df.at[idx, 'frascos']))
-        e_phaj = st.number_input("pH Ajustado", 0.0, 14.0, format="%.1f", value=float(inv_df.at[idx, 'pH_Ajustado']))
-        e_phfin = st.number_input("pH Final", 0.0, 14.0, format="%.1f", value=float(inv_df.at[idx, 'pH_Final']))
-        e_ce = st.number_input("CE Final", 0.0, 20.0, format="%.2f", value=float(inv_df.at[idx, 'CE_Final']))
-        e_lit = st.number_input("Litros a preparar",
+        e_prep = st.number_input(
+            "Preparación #", 1, 100, value=int(inv_df.at[idx, 'Preparación'])
+        )
+        e_frascos = st.number_input(
+            "Frascos", 1, 999, value=int(inv_df.at[idx, 'frascos'])
+        )
+        e_phaj = st.number_input(
+            "pH Ajustado", 0.0, 14.0, format="%.1f",
+            value=float(inv_df.at[idx, 'pH_Ajustado'])
+        )
+        e_phfin = st.number_input(
+            "pH Final", 0.0, 14.0, format="%.1f",
+            value=float(inv_df.at[idx, 'pH_Final'])
+        )
+        e_ce = st.number_input(
+            "CE Final", 0.0, 20.0, format="%.2f",
+            value=float(inv_df.at[idx, 'CE_Final'])
+        )
+        e_lit = st.number_input(
+            "Litros a preparar", 0.0, 100.0, format="%.2f",
+            value=float(inv_df.at[idx, 'Litros_preparar'])
+        )
+        e_dos = st.number_input(
+            "Dosificar por frasco", 0.0, 10.0, format="%.2f",
+            value=float(inv_df.at[idx, 'Dosificar_por_frasco'])
+        )
+        e_fecha = st.date_input(
+            "Fecha",
+            value=pd.to_datetime(inv_df.at[idx, 'Fecha']).date()
+        )
+        if st.button("Guardar cambios"):
+            inv_df.at[idx, 'Año'] = e_year
+            inv_df.at[idx, 'Receta'] = e_receta
+            inv_df.at[idx, 'Solución'] = e_sol
+            inv_df.at[idx, 'Equipo'] = e_equip
+            inv_df.at[idx, 'Semana'] = e_sem
+            inv_df.at[idx, 'Día'] = e_dia
+            inv_df.at[idx, 'Preparación'] = e_prep
+            inv_df.at[idx, 'frascos'] = e_frascos
+            inv_df.at[idx, 'pH_Ajustado'] = e_phaj
+            inv_df.at[idx, 'pH_Final'] = e_phfin
+            inv_df.at[idx, 'CE_Final'] = e_ce
+            inv_df.at[idx, 'Litros_preparar'] = e_lit
+            inv_df.at[idx, 'Dosificar_por_frasco'] = e_dos
+            inv_df.at[idx, 'Fecha'] = e_fecha.isoformat()
+            save_df(INV_FILE, inv_df)
+            st.success("Lote actualizado correctamente.")
