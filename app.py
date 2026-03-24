@@ -322,6 +322,13 @@ elif choice == "Planning":
 # --- Stock Reactivos ---
 elif choice == "Stock Reactivos":
     st.header("🔬 Stock de Reactivos")
-    up2=st.file_uploader("Sube tu Excel de reactivos",type="xlsx",key="reactivos_upl")
+    up2 = st.file_uploader("Sube tu Excel de reactivos", type="xlsx", key="reactivos_upl")
+    
     if up2:
- try:()
+        try:
+            # Aquí va el código para leer el archivo, por ejemplo:
+            df_reactivos = pd.read_excel(up2)
+            st.write("Archivo cargado con éxito:")
+            st.dataframe(df_reactivos)
+        except Exception as e:
+            st.error(f"Error al cargar el archivo: {e}")
