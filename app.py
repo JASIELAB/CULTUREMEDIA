@@ -325,4 +325,3 @@ elif choice == "Stock Reactivos":
     up2=st.file_uploader("Sube tu Excel de reactivos",type="xlsx",key="reactivos_upl")
     if up2:
           try:
-              ^
