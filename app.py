@@ -77,7 +77,7 @@ def make_qr(text):
 st.title("🫐 Culture media control system")
 
 menu = [
-    ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Recetas","📖"), 
+    ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Recetas","🧪"), 
     ("Baja Inventario","⚠️"), ("Etiquetas","🖨")
 ]
 
