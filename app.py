@@ -2,241 +2,200 @@ import streamlit as st
 import pandas as pd
 import qrcode
 import os
+import json
 from io import BytesIO
 from datetime import date, datetime
 from PIL import Image, ImageDraw, ImageFont
 
 # --- CONFIGURACIÓN Y ESTILO ---
-st.set_page_config(page_title="Medios Cultivo InVitRo", layout="wide")
+st.set_page_config(page_title="Gestión Medios InVitRo", layout="wide")
 
-# --- FUNCIONES DE SEGURIDAD (Previenen errores de conversión) ---
+# --- FUNCIONES DE SEGURIDAD Y CARGA ---
 def safe_int(val, default=0):
     try:
         if pd.isna(val) or str(val).strip() == "": return default
         return int(float(val))
-    except:
-        return default
+    except: return default
 
 def safe_float(val, default=0.0):
     try:
         if pd.isna(val) or str(val).strip() == "": return default
         return float(val)
-    except:
-        return default
+    except: return default
 
-# --- HELPERS DE QR Y ETIQUETAS ---
-def make_qr(text: str) -> BytesIO:
-    img = qrcode.make(text)
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf
+# --- GESTIÓN DE RECETAS (JSON PERSISTENTE) ---
+RECETAS_JSON = "recetas_config.json"
 
-def make_label(info_lines, qr_buf, size=(250, 120)):
-    w, h = size
-    img = Image.new("RGB", (w, h), "white")
-    draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.try_load("DejaVuSans-Bold.ttf") or ImageFont.load_default()
-    except:
-        font = ImageFont.load_default()
-    
-    y = 5
-    for line in info_lines:
-        draw.text((5, y), line, fill="black", font=font)
-        y += 15
-    
-    qr_img = Image.open(qr_buf).resize((80, 80))
-    img.paste(qr_img, (w - qr_img.width - 5, (h - qr_img.height) // 2))
-    return img
+def load_recipes():
+    # Datos iniciales basados en tu tabla si el archivo no existe
+    default_recipes = {
+        "AR-6": {"WPM": 2.41, "Zeatina": 1.0, "AIA": 0.1, "FeNA-EDDHA": 50.0, "Sacarosa": 25.0, "Agar PTC": 7.0, "pH": 5.2},
+        "SGN 3": {"WPM": 2.46, "KNO3": 500.0, "NH4NO3": 400.0, "Zeatina": 1.0, "L-Glutamina": 1.178, "Sacarosa": 30.0, "Agar PTC": 6.5, "pH": 5.0},
+        "Zr-0": {"MS": 4.4, "PVP": 1.0, "Sacarosa": 30.0, "Agar PTC": 7.0, "pH": 5.7},
+        "Zr-1": {"MS": 4.4, "BAP": 0.4, "PVP": 1.0, "Sacarosa": 30.0, "Agar PTC": 7.0, "pH": 5.7},
+        "Zr-3": {"MS": 4.4, "BAP": 0.05, "PVP": 1.0, "Sacarosa": 30.0, "Agar PTC": 7.0, "pH": 5.7}
+    }
+    if os.path.exists(RECETAS_JSON):
+        with open(RECETAS_JSON, "r") as f:
+            return json.load(f)
+    return default_recipes
 
-# --- PERSISTENCIA DE DATOS ---
+def save_recipes(data):
+    with open(RECETAS_JSON, "w") as f:
+        json.dump(data, f, indent=4)
+
+if 'recipes_db' not in st.session_state:
+    st.session_state.recipes_db = load_recipes()
+
+# --- PERSISTENCIA DE INVENTARIO ---
 INV_FILE = "inventario_medios.csv"
-SOL_FILE = "soluciones_stock.csv"
 HIST_FILE = "movimientos.csv"
-REC_FILE = "RECETAS MEDIOS ACTUAL JUNIO251.xlsx"
-
-inv_cols = [
-    "Código", "Año", "Receta", "Solución", "Equipo", "Semana", "Día", "Preparación",
-    "frascos", "pH_Ajustado", "pH_Final", "CE_Final", "Litros_preparar", "Dosificar_por_frasco", "Fecha"
-]
-sol_cols = ["Fecha", "Cantidad", "Código_Solución", "Responsable", "Regulador", "Observaciones"]
-hist_cols = ["Timestamp", "Tipo", "Código", "Cantidad", "Detalles"]
 
 def load_df(path, cols):
     if os.path.exists(path):
         df = pd.read_csv(path, dtype=str)
         for c in cols:
             if c not in df.columns: df[c] = ""
-        return df[cols]
+        return df
     return pd.DataFrame(columns=cols)
 
 def save_df(path, df):
     df.to_csv(path, index=False)
 
-# Carga inicial
+inv_cols = ["Código", "Año", "Receta", "Solución", "Equipo", "Semana", "Día", "Preparación", "frascos", "pH_Final", "Fecha"]
 inv_df = load_df(INV_FILE, inv_cols)
-sol_df = load_df(SOL_FILE, sol_cols)
-mov_df = load_df(HIST_FILE, hist_cols)
+mov_df = load_df(HIST_FILE, ["Timestamp", "Tipo", "Código", "Cantidad", "Detalles"])
 
-# --- CARGA DE RECETAS ---
-recipes = {}
-if os.path.exists(REC_FILE):
-    try:
-        xls0 = pd.ExcelFile(REC_FILE)
-        for sheet in xls0.sheet_names:
-            df0 = xls0.parse(sheet)
-            if not df0.empty:
-                sub0 = df0.iloc[:, :3].dropna(how='all').copy()
-                sub0.columns = ["Componente","Fórmula","Concentración"]
-                recipes[sheet] = sub0
-    except:
-        recipes = {"Genérica": pd.DataFrame()}
+# --- HELPERS GRÁFICOS ---
+def make_qr(text):
+    img = qrcode.make(text)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf
 
-# --- INTERFAZ ---
-st.title("🧪 Control de Medios de Cultivo")
+# --- INTERFAZ PRINCIPAL ---
+st.title("🔬 Sistema Control de Medios")
 
 menu = [
-    ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Baja Inventario","⚠️"),
-    ("Retorno Medio","🔄"), ("Soluciones Stock","🧪"), ("Recetas","📖"), 
-    ("Etiquetas","🖨"), ("Planning","📅")
+    ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Recetas","📖"), 
+    ("Baja Inventario","⚠️"), ("Etiquetas","🖨")
 ]
 
-if 'choice' not in st.session_state: st.session_state.choice = menu[0][0]
+if 'choice' not in st.session_state: st.session_state.choice = "Registrar Lote"
 
-# Botones de navegación
-cols_menu = st.columns(len(menu))
+c_menu = st.columns(len(menu))
 for i, (lbl, icn) in enumerate(menu):
-    if cols_menu[i].button(f"{icn}\n{lbl}"):
+    if c_menu[i].button(f"{icn} {lbl}"):
         st.session_state.choice = lbl
 
 st.divider()
-choice = st.session_state.choice
 
-# --- LÓGICA DE SECCIONES ---
+# --- LÓGICA DE NAVEGACIÓN ---
 
-if choice == "Registrar Lote":
+if st.session_state.choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
-    with st.form("registro_form"):
+    with st.form("reg_lote"):
         c1, c2, c3 = st.columns(3)
-        year = c1.number_input("Año", 2000, 2100, value=date.today().year)
-        receta = c2.selectbox("Receta", list(recipes.keys()))
-        solucion = c3.text_input("Solución stock")
+        year = c1.number_input("Año", 2000, 2100, 2026)
+        receta = c2.selectbox("Receta", list(st.session_state.recipes_db.keys()))
+        prep = c3.number_input("Preparación #", 1, 100, 1)
         
-        c4, c5, c6 = st.columns(3)
-        equipo = c4.selectbox("Equipo", ["Preparadora Alpha", "Preparadora Beta"])
-        semana = c5.number_input("Semana", 1, 52, value=int(datetime.today().strftime('%U')))
-        dia = c6.number_input("Día", 1, 7, value=datetime.today().isoweekday())
+        c4, c5 = st.columns(2)
+        frascos = c4.number_input("Cantidad Frascos", 0, 999, 1)
+        equipo = c5.selectbox("Equipo", ["Alpha", "Beta"])
         
-        c7, c8, c9 = st.columns(3)
-        prep = c7.number_input("Preparación #", 1, 100)
-        frascos = c8.number_input("Frascos", 0, 999, value=1) # Mínimo 0 por seguridad
-        litros = c9.number_input("Litros a preparar", 0.0, 100.0, value=1.0)
-        
-        submit = st.form_submit_button("Registrar lote")
-        if submit:
-            code = f"{str(year)[2:]}{receta[:2]}Z{semana:02d}{dia}-{prep}"
-            new_row = [code, year, receta, solucion, equipo, semana, dia, prep, frascos, 0.0, 0.0, 0.0, litros, 0.0, date.today().isoformat()]
-            inv_df.loc[len(inv_df)] = new_row
+        if st.form_submit_button("Guardar Lote"):
+            sem = datetime.today().strftime('%U')
+            dia = datetime.today().isoweekday()
+            code = f"{str(year)[2:]}{receta[:2]}Z{sem}{dia}-{prep}"
+            
+            new_data = [code, year, receta, "", equipo, sem, dia, prep, frascos, 5.7, date.today().isoformat()]
+            inv_df.loc[len(inv_df)] = new_data
             save_df(INV_FILE, inv_df)
-            st.success(f"Lote {code} guardado.")
+            st.success(f"Lote {code} registrado con éxito.")
 
-elif choice == "Consultar Stock":
-    st.header("📦 Inventario Actual")
+elif st.session_state.choice == "Consultar Stock":
+    st.header("📦 Stock e Inventario")
     st.dataframe(inv_df, use_container_width=True)
     
-    st.subheader("✏️ Editar Lote Existente")
-    sel = st.selectbox("Selecciona lote", [""] + list(inv_df['Código'].unique()))
-    
-    if sel != "":
-        idx = inv_df[inv_df['Código'] == sel].index[0]
+    st.subheader("✏️ Edición Rápida")
+    sel_lote = st.selectbox("Selecciona lote para editar", [""] + list(inv_df['Código']))
+    if sel_lote:
+        idx = inv_df[inv_df['Código'] == sel_lote].index[0]
+        col1, col2 = st.columns(2)
+        # CORRECCIÓN: Mínimo 0 para evitar el error de la imagen
+        new_f = col1.number_input("Frascos actuales", 0, 999, value=safe_int(inv_df.at[idx, 'frascos']))
+        new_ph = col2.number_input("Ajuste pH Final", 0.0, 14.0, value=safe_float(inv_df.at[idx, 'pH_Final']))
         
-        with st.expander(f"Editando Lote: {sel}", expanded=True):
-            col1, col2 = st.columns(2)
-            # AQUÍ ESTÁ LA CORRECCIÓN DEL ERROR: Usamos safe_int y min_value=0
-            e_fras = col1.number_input("Frascos", 0, 999, value=safe_int(inv_df.at[idx, 'frascos']))
-            e_phaj = col2.number_input("pH Ajustado", 0.0, 14.0, value=safe_float(inv_df.at[idx, 'pH_Ajustado']))
-            e_phfin = col1.number_input("pH Final", 0.0, 14.0, value=safe_float(inv_df.at[idx, 'pH_Final']))
-            e_ce = col2.number_input("CE Final", 0.0, 20.0, value=safe_float(inv_df.at[idx, 'CE_Final']))
-            
-            if st.button("Actualizar Datos"):
-                inv_df.at[idx, 'frascos'] = e_fras
-                inv_df.at[idx, 'pH_Ajustado'] = e_phaj
-                inv_df.at[idx, 'pH_Final'] = e_phfin
-                inv_df.at[idx, 'CE_Final'] = e_ce
-                save_df(INV_FILE, inv_df)
-                st.success("Cambios aplicados.")
-                st.rerun()
-
-elif choice == "Baja Inventario":
-    st.header("⚠️ Baja de Inventario")
-    sel = st.selectbox("Lote a descontar", inv_df['Código'])
-    cant = st.number_input("Cantidad a quitar", 1, 500)
-    motivo = st.selectbox("Motivo", ["Consumo", "Contaminación", "Merma"])
-    
-    if st.button("Procesar Baja"):
-        idx = inv_df[inv_df['Código'] == sel].index[0]
-        actual = safe_int(inv_df.at[idx, 'frascos'])
-        if actual >= cant:
-            inv_df.at[idx, 'frascos'] = actual - cant
+        if st.button("Guardar Cambios"):
+            inv_df.at[idx, 'frascos'] = new_f
+            inv_df.at[idx, 'pH_Final'] = new_ph
             save_df(INV_FILE, inv_df)
-            mov_df.loc[len(mov_df)] = [datetime.now().isoformat(), "Baja", sel, cant, motivo]
-            save_df(HIST_FILE, mov_df)
-            st.warning(f"Se descontaron {cant} unidades de {sel}.")
-        else:
-            st.error("No hay suficiente stock.")
+            st.success("Inventario actualizado.")
+            st.rerun()
 
-elif choice == "Retorno Medio":
-    st.header("🔄 Retorno de Frascos")
-    sel = st.selectbox("Lote", inv_df['Código'])
-    cant = st.number_input("Cantidad a retornar", 1, 500)
-    if st.button("Sumar al Stock"):
-        idx = inv_df[inv_df['Código'] == sel].index[0]
-        inv_df.at[idx, 'frascos'] = safe_int(inv_df.at[idx, 'frascos']) + cant
-        save_df(INV_FILE, inv_df)
-        st.success("Stock actualizado.")
+elif st.session_state.choice == "Recetas":
+    st.header("📖 Editor de Recetas (Sin Excel)")
+    
+    col_a, col_b = st.columns([2,1])
+    rec_name = col_a.selectbox("Editar Receta:", list(st.session_state.recipes_db.keys()))
+    new_name = col_b.text_input("Nueva Receta (Nombre):")
+    if col_b.button("➕ Crear"):
+        if new_name and new_name not in st.session_state.recipes_db:
+            st.session_state.recipes_db[new_name] = {"pH": 5.7}
+            save_recipes(st.session_state.recipes_db)
+            st.rerun()
 
-elif choice == "Soluciones Stock":
-    st.header("🧪 Soluciones Stock")
-    with st.form("sol_form"):
-        c1, c2 = st.columns(2)
-        f_sol = c1.date_input("Fecha", date.today())
-        cod_sol = c2.text_input("Código Solución")
-        cant_sol = c1.number_input("Litros/Cantidad", 0.0, 50.0)
-        resp = c2.text_input("Responsable")
-        if st.form_submit_button("Guardar Solución"):
-            sol_df.loc[len(sol_df)] = [f_sol.isoformat(), cant_sol, cod_sol, resp, "", ""]
-            save_df(SOL_FILE, sol_df)
-            st.success("Solución registrada.")
-    st.dataframe(sol_df)
-
-elif choice == "Recetas":
-    st.header("📖 Consulta de Recetas")
-    if recipes:
-        sel_r = st.selectbox("Selecciona Receta", list(recipes.keys()))
-        st.table(recipes[sel_r])
-    else:
-        st.info("Sube el archivo Excel de recetas para visualizarlas.")
-
-elif choice == "Etiquetas":
-    st.header("🖨 Generador de Etiquetas")
-    sel_e = st.selectbox("Lote para etiqueta", inv_df['Código'])
-    if st.button("Generar"):
-        row = inv_df[inv_df['Código'] == sel_e].iloc[0]
-        info = [f"ID: {row['Código']}", f"Receta: {row['Receta']}", f"Fecha: {row['Fecha']}"]
-        qr = make_qr(sel_e)
-        img = make_label(info, qr)
-        st.image(img, width=300)
+    st.divider()
+    
+    # Listado de ingredientes basado en tu tabla
+    ingredientes = [
+        "WPM", "MS", "KNO3", "NH4NO3", "CaCl2", "Ca(NO3)2-4H2O", "MgSO4 7H2O", "KH2PO4",
+        "MnSO4 H2O", "ZnSO4 7H2O", "BAP", "Zeatina", "AIA", "FeNA-EDDHA", "PVP", 
+        "L-Glutamina", "Sacarosa", "Agar PTC", "pH"
+    ]
+    
+    rec_data = st.session_state.recipes_db[rec_name]
+    
+    with st.form("edit_receta"):
+        st.subheader(f"Componentes de {rec_name}")
+        c = st.columns(3)
+        updated_values = {}
+        for i, ing in enumerate(ingredientes):
+            val_actual = safe_float(rec_data.get(ing, 0.0))
+            updated_values[ing] = c[i % 3].number_input(ing, value=val_actual, format="%.3f")
         
-        # Descarga
-        buf = BytesIO()
-        img.save(buf, format="PNG")
-        st.download_button("Descargar Etiqueta", buf.getvalue(), f"Etiqueta_{sel_e}.png", "image/png")
+        if st.form_submit_button("💾 Guardar Receta"):
+            # Guardamos solo valores distintos de 0 (excepto pH)
+            st.session_state.recipes_db[rec_name] = {k: v for k, v in updated_values.items() if v != 0 or k == "pH"}
+            save_recipes(st.session_state.recipes_db)
+            st.success("Cambios guardados en el sistema.")
 
-elif choice == "Planning":
-    st.header("📅 Gestión de Planning")
-    uploaded = st.file_uploader("Subir Excel de Planning", type="xlsx")
-    if uploaded:
-        dfp = pd.read_excel(uploaded)
-        st.dataframe(dfp)
-        st.info("Funcionalidad de procesamiento de planning lista para configurar.")
+    st.divider()
+    st.subheader("📊 Matriz Comparativa")
+    st.dataframe(pd.DataFrame(st.session_state.recipes_db).fillna(0), use_container_width=True)
+
+elif st.session_state.choice == "Baja Inventario":
+    st.header("⚠️ Registrar Salida / Baja")
+    sel = st.selectbox("Lote", inv_df['Código'])
+    cant = st.number_input("Cantidad a descontar", 1, 100)
+    motivo = st.selectbox("Motivo", ["Consumo Producción", "Contaminación", "Merma"])
+    
+    if st.button("Ejecutar Baja"):
+        idx = inv_df[inv_df['Código'] == sel].index[0]
+        curr = safe_int(inv_df.at[idx, 'frascos'])
+        if curr >= cant:
+            inv_df.at[idx, 'frascos'] = curr - cant
+            save_df(INV_FILE, inv_df)
+            st.warning(f"Baja realizada. Stock restante de {sel}: {curr - cant}")
+        else:
+            st.error("No hay suficiente stock para esa cantidad.")
+
+elif st.session_state.choice == "Etiquetas":
+    st.header("🖨 Generador de Etiquetas")
+    sel_et = st.selectbox("Lote:", inv_df['Código'])
+    if st.button("Generar Vista Previa"):
+        row = inv_df[inv_df['Código'] == sel_et].iloc[0]
+        st.write(f"**Lote:** {row['Código']} | **Receta:** {row['Receta']} | **Fecha:** {row['Fecha']}")
+        qr = make_qr(sel_et)
+        st.image(qr, width=200)
