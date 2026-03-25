@@ -74,7 +74,7 @@ def make_qr(text):
     return buf
 
 # --- INTERFAZ PRINCIPAL ---
-st.title("🫐 Cultivation media control system")
+st.title("🫐 Culture media control system")
 
 menu = [
     ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Recetas","📖"), 
