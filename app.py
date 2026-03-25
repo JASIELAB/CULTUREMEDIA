@@ -138,7 +138,7 @@ elif st.session_state.choice == "Consultar Stock":
             st.rerun()
 
 elif st.session_state.choice == "Recetas":
-    st.header("📖 Editor de Recetas (Sin Excel)")
+    st.header("📖 Editor de Recetas")
     
     col_a, col_b = st.columns([2,1])
     rec_name = col_a.selectbox("Editar Receta:", list(st.session_state.recipes_db.keys()))
