@@ -96,7 +96,7 @@ if st.session_state.choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     with st.form("reg_lote"):
         c1, c2, c3 = st.columns(3)
-        year = c1.number_input("Año", 2000, 2100, 2026)
+        fecha_prep = c1.date_input("Fecha de Preparación", date.today()) year = fecha_prep.year
         receta = c2.selectbox("Receta", list(st.session_state.recipes_db.keys()))
         prep = c3.number_input("Preparación #", 1, 100, 1)
         
