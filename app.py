@@ -102,7 +102,7 @@ if st.session_state.choice == "Registrar Lote":
         
         c4, c5 = st.columns(2)
         frascos = c4.number_input("Cantidad Frascos", 0, 999, 1)
-        equipo = c5.selectbox("Equipo", ["Alpha", "Beta"])
+        equipo = c5.selectbox("Equipo", ["Alpha", "Beta","Gamma"])
         
         if st.form_submit_button("Guardar Lote"):
             sem = datetime.today().strftime('%U')
