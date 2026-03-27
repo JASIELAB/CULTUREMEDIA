@@ -100,7 +100,7 @@ if st.session_state.choice == "Registrar Lote":
         
         c4, c5 = st.columns(2)
         frascos = c4.number_input("Cantidad Frascos", 0, 999, 1)
-        equipo = c5.selectbox("Equipo", ["Alpha", "Beta"])
+        equipo = c5.selectbox("Equipo", ["Alpha", "Beta, Gamma"])
         
         st.markdown("#### 🧪 Parámetros Químicos")
         cp1, cp2, cp3 = st.columns(3)
