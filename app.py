@@ -5,7 +5,7 @@ import os
 import json
 from io import BytesIO
 from datetime import date, datetime
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 # --- CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Sistema InVitRo", layout="wide")
@@ -23,10 +23,11 @@ def safe_float(val, default=0.0):
         return float(val)
     except: return default
 
-# --- GESTIÓN DE RECETAS (JSON PERSISTENTE) ---
+# --- GESTIÓN DE RECETAS ---
 RECETAS_JSON = "recetas_config.json"
 
 def load_recipes():
+    # Base de datos inicial según tabla proporcionada
     default_recipes = {
         "AR-6": {"WPM": 2.41, "Zeatina": 1.0, "AIA": 0.1, "FeNA-EDDHA": 50.0, "Sacarosa": 25.0, "Agar PTC": 7.0, "pH": 5.2},
         "SGN 3": {"WPM": 2.46, "KNO3": 500.0, "NH4NO3": 400.0, "Zeatina": 1.0, "L-Glutamina": 1.178, "Sacarosa": 30.0, "Agar PTC": 6.5, "pH": 5.0},
@@ -121,46 +122,27 @@ if st.session_state.choice == "Registrar Lote":
             sem = fecha_prep.strftime('%U')
             dia_sem = fecha_prep.isoweekday()
             code = f"{str(year)[2:]}{receta[:2]}Z{sem}{dia_sem}-{prep_num}"
-            
-            new_row = [
-                code, year, receta, equipo, sem, dia_sem, prep_num, frascos, 
-                fecha_prep.isoformat(), ph_ini, ph_aju, ph_fin, 
-                ce_ini, ce_fin, sol_1, sol_2, sol_3
-            ]
+            new_row = [code, year, receta, equipo, sem, dia_sem, prep_num, frascos, fecha_prep.isoformat(), ph_ini, ph_aju, ph_fin, ce_ini, ce_fin, sol_1, sol_2, sol_3]
             inv_df.loc[len(inv_df)] = new_row
             save_df(INV_FILE, inv_df)
             st.success(f"✅ Lote {code} registrado correctamente.")
 
-# --- 2. CONSULTAR STOCK (CON TABLA RESUMEN MEJORADA) ---
+# --- 2. CONSULTAR STOCK ---
 elif st.session_state.choice == "Consultar Stock":
     st.header("📦 Inventario de Medios")
-    
     if not inv_df.empty:
-        # --- TABLA RESUMEN MEJORADA ---
         st.subheader("📊 Resumen de Stock por Receta")
-        # Agrupamos por receta y aplicamos suma (frascos) y conteo (lotes)
-        resumen = inv_df.groupby("Receta").agg(
-            Total_Frascos=("frascos", "sum"),
-            Numero_Lotes=("Código", "count")
-        ).reset_index()
-        
-        resumen.columns = ["Receta", "Total Frascos", "Número de Lotes"]
-        
-        col_res, col_space = st.columns([1.2, 2])
-        with col_res:
-            st.dataframe(resumen, hide_index=True, use_container_width=True)
+        resumen = inv_df.groupby("Receta").agg(Total_Frascos=("frascos", "sum"), Numero_Lotes=("Código", "count")).reset_index()
+        st.dataframe(resumen, hide_index=True, use_container_width=True)
         
         st.divider()
-        
-        # --- TABLA DETALLADA ---
         st.subheader("📝 Detalle de Lotes")
-        st.dataframe(inv_df, use_container_width=True) 
+        st.dataframe(inv_df, use_container_width=True)
         
         st.subheader("✏️ Edición de Lote")
         sel_lote = st.selectbox("Selecciona lote para editar", [""] + list(inv_df['Código']))
         if sel_lote:
             idx = inv_df[inv_df['Código'] == sel_lote].index[0]
-            # Mínimo 0 para evitar errores si el lote se agota
             v_frascos = st.number_input("Cantidad de Frascos", 0, 999, value=safe_int(inv_df.at[idx, 'frascos']))
             if st.button("Actualizar Lote"):
                 inv_df.at[idx, 'frascos'] = v_frascos
@@ -170,20 +152,19 @@ elif st.session_state.choice == "Consultar Stock":
     else:
         st.info("No hay datos en el inventario.")
 
-# --- 3. INCUBACIÓN (CON SEMÁFORO) ---
+# --- 3. INCUBACIÓN ---
 elif st.session_state.choice == "Incubación":
     st.header("🌡️ Monitoreo de Incubación")
     if not inv_df.empty:
         temp_df = inv_df.copy()
         temp_df['Fecha_Prep'] = pd.to_datetime(temp_df['Fecha_Prep'])
-        hoy = pd.Timestamp(date.today())
-        temp_df['Días'] = (hoy - temp_df['Fecha_Prep']).dt.days
+        temp_df['Días'] = (pd.Timestamp(date.today()) - temp_df['Fecha_Prep']).dt.days
         
         def color_incubacion(row):
             d = row['Días']
-            if d < 7: color = 'background-color: #ffff99' # Amarillo (<7 días)
-            elif 7 <= d <= 28: color = 'background-color: #c2f0c2' # Verde (7-28 días)
-            else: color = 'background-color: #ff9999' # Rojo (>28 días)
+            if d < 7: color = 'background-color: #ffff99' # Amarillo
+            elif 7 <= d <= 28: color = 'background-color: #c2f0c2' # Verde
+            else: color = 'background-color: #ff9999' # Rojo
             return [color] * len(row)
 
         st.dataframe(temp_df[['Código', 'Receta', 'Fecha_Prep', 'Días', 'frascos']].style.apply(color_incubacion, axis=1), use_container_width=True)
@@ -193,22 +174,15 @@ elif st.session_state.choice == "Incubación":
 # --- 4. RECETAS ---
 elif st.session_state.choice == "Recetas":
     st.header("📖 Editor de Recetas")
-    
     rec_name = st.selectbox("Seleccionar Receta:", list(st.session_state.recipes_db.keys()))
-    ingredientes = [
-        "WPM", "MS", "KNO3", "NH4NO3", "CaCl2", "Ca(NO3)2-4H2O", "MgSO4 7H2O", "KH2PO4",
-        "MnSO4 H2O", "ZnSO4 7H2O", "BAP", "Zeatina", "AIA", "FeNA-EDDHA", "PVP", 
-        "L-Glutamina", "Sacarosa", "Agar PTC", "pH"
-    ]
+    ingredientes = ["WPM", "MS", "KNO3", "NH4NO3", "CaCl2", "Ca(NO3)2-4H2O", "MgSO4 7H2O", "KH2PO4", "MnSO4 H2O", "ZnSO4 7H2O", "BAP", "Zeatina", "AIA", "FeNA-EDDHA", "PVP", "L-Glutamina", "Sacarosa", "Agar PTC", "pH"]
     
     with st.form("edit_rec_form"):
-        st.subheader(f"Componentes: {rec_name}")
         c = st.columns(3)
         updates = {}
         for i, ing in enumerate(ingredientes):
             val = safe_float(st.session_state.recipes_db[rec_name].get(ing, 0.0))
             updates[ing] = c[i % 3].number_input(ing, value=val, format="%.3f")
-        
         if st.form_submit_button("💾 Guardar Receta"):
             st.session_state.recipes_db[rec_name] = {k: v for k, v in updates.items() if v != 0 or k == "pH"}
             save_recipes(st.session_state.recipes_db)
@@ -231,10 +205,41 @@ elif st.session_state.choice == "Baja Inventario":
             else:
                 st.error("Stock insuficiente.")
 
-# --- 6. ETIQUETAS ---
+# --- 6. ETIQUETAS (3.5cm x 2cm) ---
 elif st.session_state.choice == "Etiquetas":
     st.header("🖨 Generador de Etiquetas")
     if not inv_df.empty:
         sel_e = st.selectbox("Lote para generar QR:", inv_df['Código'])
-        qr_img = qrcode.make(sel_e)
-        st.image(qr_img.get_image(), width=250)
+        lote_info = inv_df[inv_df['Código'] == sel_e].iloc[0]
+        
+        if st.button("Generar Etiqueta"):
+            # Medidas 3.5cm x 2cm (300 DPI aprox)
+            width, height = 413, 236
+            img = Image.new('RGB', (width, height), color=(255, 255, 255))
+            draw = ImageDraw.Draw(img)
+            
+            qr = qrcode.QRCode(box_size=4, border=1)
+            qr.add_data(sel_e)
+            qr.make(fit=True)
+            qr_img = qr.make_image(fill_color="black", back_color="white").resize((180, 180))
+            img.paste(qr_img, (10, 28))
+            
+            try:
+                f_bold = ImageFont.truetype("arialbd.ttf", 22)
+                f_reg = ImageFont.truetype("arial.ttf", 16)
+            except:
+                f_bold = ImageFont.load_default()
+                f_reg = ImageFont.load_default()
+            
+            tx = 200
+            draw.text((tx, 30), "RECETA:", fill="black", font=f_reg)
+            draw.text((tx, 52), lote_info['Receta'], fill="black", font=f_bold)
+            draw.text((tx, 90), "FECHA:", fill="black", font=f_reg)
+            draw.text((tx, 112), lote_info['Fecha_Prep'], fill="black", font=f_bold)
+            draw.text((tx, 150), "LOTE:", fill="black", font=f_reg)
+            draw.text((tx, 172), sel_e, fill="black", font=f_bold)
+
+            st.image(img, caption="Vista previa (3.5x2 cm)")
+            buf = BytesIO()
+            img.save(buf, format="PNG")
+            st.download_button("📥 Descargar Etiqueta", buf.getvalue(), f"QR_{sel_e}.png", "image/png")
