@@ -27,7 +27,6 @@ def safe_float(val, default=0.0):
 RECETAS_JSON = "recetas_config.json"
 
 def load_recipes():
-    # Base de datos inicial basada en la tabla de ingredientes proporcionada
     default_recipes = {
         "AR-6": {"WPM": 2.41, "Zeatina": 1.0, "AIA": 0.1, "FeNA-EDDHA": 50.0, "Sacarosa": 25.0, "Agar PTC": 7.0, "pH": 5.2},
         "SGN 3": {"WPM": 2.46, "KNO3": 500.0, "NH4NO3": 400.0, "Zeatina": 1.0, "L-Glutamina": 1.178, "Sacarosa": 30.0, "Agar PTC": 6.5, "pH": 5.0},
@@ -58,6 +57,8 @@ inv_cols = [
 def load_df(path, cols):
     if os.path.exists(path):
         df = pd.read_csv(path, dtype=str)
+        if 'frascos' in df.columns:
+            df['frascos'] = pd.to_numeric(df['frascos'], errors='coerce').fillna(0).astype(int)
         for c in cols:
             if c not in df.columns: df[c] = ""
         return df[cols]
@@ -71,7 +72,6 @@ inv_df = load_df(INV_FILE, inv_cols)
 # --- INTERFAZ PRINCIPAL ---
 st.title("🧪 Control de Medios InVitRo")
 
-# Menú con todas las secciones solicitadas
 menu = [
     ("Registrar Lote","📋"), ("Consultar Stock","📦"), 
     ("Incubación","🌡️"), ("Recetas","📖"), 
@@ -92,7 +92,6 @@ if st.session_state.choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
     with st.form("reg_lote"):
         c1, c2, c3 = st.columns(3)
-        # Cambio de input numérico a selector de fecha
         fecha_prep = c1.date_input("Fecha de Preparación", date.today())
         year = fecha_prep.year 
         receta = c2.selectbox("Receta", list(st.session_state.recipes_db.keys()))
@@ -100,7 +99,7 @@ if st.session_state.choice == "Registrar Lote":
         
         c4, c5 = st.columns(2)
         frascos = c4.number_input("Cantidad Frascos", 0, 999, 1)
-        equipo = c5.selectbox("Equipo", ["Alpha", "Beta"])
+        equipo = c5.selectbox("Equipo", ["Alpha", "Beta", "Gamma"])
         
         st.markdown("#### 🧪 Parámetros Químicos")
         cp1, cp2, cp3 = st.columns(3)
@@ -132,24 +131,46 @@ if st.session_state.choice == "Registrar Lote":
             save_df(INV_FILE, inv_df)
             st.success(f"✅ Lote {code} registrado correctamente.")
 
-# --- 2. CONSULTAR STOCK ---
+# --- 2. CONSULTAR STOCK (CON TABLA RESUMEN MEJORADA) ---
 elif st.session_state.choice == "Consultar Stock":
     st.header("📦 Inventario de Medios")
-    st.dataframe(inv_df, use_container_width=True)
     
-    st.subheader("✏️ Edición de Lote")
-    sel_lote = st.selectbox("Selecciona lote para editar", [""] + list(inv_df['Código']))
-    if sel_lote:
-        idx = inv_df[inv_df['Código'] == sel_lote].index[0]
-        # Corrección del error de valor mínimo permitido (cambiado 1 a 0)
-        v_frascos = st.number_input("Frascos", 0, 999, value=safe_int(inv_df.at[idx, 'frascos']))
-        if st.button("Actualizar Stock"):
-            inv_df.at[idx, 'frascos'] = v_frascos
-            save_df(INV_FILE, inv_df)
-            st.success("Cambios guardados.")
-            st.rerun()
+    if not inv_df.empty:
+        # --- TABLA RESUMEN MEJORADA ---
+        st.subheader("📊 Resumen de Stock por Receta")
+        # Agrupamos por receta y aplicamos suma (frascos) y conteo (lotes)
+        resumen = inv_df.groupby("Receta").agg(
+            Total_Frascos=("frascos", "sum"),
+            Numero_Lotes=("Código", "count")
+        ).reset_index()
+        
+        resumen.columns = ["Receta", "Total Frascos", "Número de Lotes"]
+        
+        col_res, col_space = st.columns([1.2, 2])
+        with col_res:
+            st.dataframe(resumen, hide_index=True, use_container_width=True)
+        
+        st.divider()
+        
+        # --- TABLA DETALLADA ---
+        st.subheader("📝 Detalle de Lotes")
+        st.dataframe(inv_df, use_container_width=True) 
+        
+        st.subheader("✏️ Edición de Lote")
+        sel_lote = st.selectbox("Selecciona lote para editar", [""] + list(inv_df['Código']))
+        if sel_lote:
+            idx = inv_df[inv_df['Código'] == sel_lote].index[0]
+            # Mínimo 0 para evitar errores si el lote se agota
+            v_frascos = st.number_input("Cantidad de Frascos", 0, 999, value=safe_int(inv_df.at[idx, 'frascos']))
+            if st.button("Actualizar Lote"):
+                inv_df.at[idx, 'frascos'] = v_frascos
+                save_df(INV_FILE, inv_df)
+                st.success("Cambios guardados.")
+                st.rerun()
+    else:
+        st.info("No hay datos en el inventario.")
 
-# --- 3. INCUBACIÓN (CON SEMÁFORO DE COLORES) ---
+# --- 3. INCUBACIÓN (CON SEMÁFORO) ---
 elif st.session_state.choice == "Incubación":
     st.header("🌡️ Monitoreo de Incubación")
     if not inv_df.empty:
@@ -160,9 +181,9 @@ elif st.session_state.choice == "Incubación":
         
         def color_incubacion(row):
             d = row['Días']
-            if d < 7: color = 'background-color: #ffff99' # Amarillo
-            elif 7 <= d <= 28: color = 'background-color: #c2f0c2' # Verde
-            else: color = 'background-color: #ff9999' # Rojo
+            if d < 7: color = 'background-color: #ffff99' # Amarillo (<7 días)
+            elif 7 <= d <= 28: color = 'background-color: #c2f0c2' # Verde (7-28 días)
+            else: color = 'background-color: #ff9999' # Rojo (>28 días)
             return [color] * len(row)
 
         st.dataframe(temp_df[['Código', 'Receta', 'Fecha_Prep', 'Días', 'frascos']].style.apply(color_incubacion, axis=1), use_container_width=True)
@@ -171,7 +192,7 @@ elif st.session_state.choice == "Incubación":
 
 # --- 4. RECETAS ---
 elif st.session_state.choice == "Recetas":
-    st.header("📖 Editor de Recetas") # Leyenda "(Sin Excel)" eliminada
+    st.header("📖 Editor de Recetas")
     
     rec_name = st.selectbox("Seleccionar Receta:", list(st.session_state.recipes_db.keys()))
     ingredientes = [
@@ -196,22 +217,24 @@ elif st.session_state.choice == "Recetas":
 # --- 5. BAJA INVENTARIO ---
 elif st.session_state.choice == "Baja Inventario":
     st.header("⚠️ Registro de Bajas")
-    sel_b = st.selectbox("Lote:", inv_df['Código'])
-    cant_b = st.number_input("Cantidad a descontar:", 1, 999)
-    if st.button("Confirmar Baja"):
-        idx = inv_df[inv_df['Código'] == sel_b].index[0]
-        actual = safe_int(inv_df.at[idx, 'frascos'])
-        if actual >= cant_b:
-            inv_df.at[idx, 'frascos'] = actual - cant_b
-            save_df(INV_FILE, inv_df)
-            st.success("Inventario actualizado.")
-        else:
-            st.error("Stock insuficiente.")
+    if not inv_df.empty:
+        sel_b = st.selectbox("Lote a descontar:", inv_df['Código'])
+        cant_b = st.number_input("Cantidad a retirar:", 1, 999)
+        if st.button("Confirmar Baja"):
+            idx = inv_df[inv_df['Código'] == sel_b].index[0]
+            actual = safe_int(inv_df.at[idx, 'frascos'])
+            if actual >= cant_b:
+                inv_df.at[idx, 'frascos'] = actual - cant_b
+                save_df(INV_FILE, inv_df)
+                st.success(f"Baja aplicada al lote {sel_b}.")
+                st.rerun()
+            else:
+                st.error("Stock insuficiente.")
 
 # --- 6. ETIQUETAS ---
 elif st.session_state.choice == "Etiquetas":
     st.header("🖨 Generador de Etiquetas")
     if not inv_df.empty:
-        sel_e = st.selectbox("Lote para QR:", inv_df['Código'])
+        sel_e = st.selectbox("Lote para generar QR:", inv_df['Código'])
         qr_img = qrcode.make(sel_e)
         st.image(qr_img.get_image(), width=250)
