@@ -205,7 +205,7 @@ elif st.session_state.choice == "Baja Inventario":
             else:
                 st.error("Stock insuficiente.")
 
-# --- 6. ETIQUETAS (3.5cm x 2cm) ---
+# --- 6. ETIQUETAS (2.5cm x 1cm) ---
 elif st.session_state.choice == "Etiquetas":
     st.header("🖨 Generador de Etiquetas")
     if not inv_df.empty:
@@ -213,7 +213,7 @@ elif st.session_state.choice == "Etiquetas":
         lote_info = inv_df[inv_df['Código'] == sel_e].iloc[0]
         
         if st.button("Generar Etiqueta"):
-            # Medidas 3.5cm x 2cm (300 DPI aprox)
+            # Medidas 2.5cm x 1cm (300 DPI aprox)
             width, height = 413, 236
             img = Image.new('RGB', (width, height), color=(255, 255, 255))
             draw = ImageDraw.Draw(img)
