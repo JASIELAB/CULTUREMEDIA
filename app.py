@@ -71,7 +71,7 @@ def save_df(path, df):
 inv_df = load_df(INV_FILE, inv_cols)
 
 # --- INTERFAZ PRINCIPAL ---
-st.title("🧪 Control de Medios InVitRo")
+st.title("🧪 Control de Medios de Cultivo")
 
 # Asegúrate de que "Gestión de Consumibles" esté en esta lista
 menu = [
@@ -81,7 +81,7 @@ menu = [
     ("Recetas","📖"), 
     ("Baja Inventario","⚠️"), 
     ("Etiquetas","🖨"),
-    ("Gestión de Consumibles", "🛸") # <--- Verifica que esté aquí
+    ("Gestión de Consumibles", "🫙") # <--- Verifica que esté aquí
 ]
 
 if 'choice' not in st.session_state: 
@@ -283,7 +283,7 @@ elif st.session_state.choice == "Etiquetas":
 
 # --- 7. GESTIÓN DE CONSUMIBLES ---
 elif st.session_state.choice == "Gestión de Consumibles":
-    st.header("🛸 Gestión de Consumibles")
+    st.header("🫙 Gestión de Consumibles")
     
     # URL de tu reporte (la de tu imagen)
     url_powerbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122"
