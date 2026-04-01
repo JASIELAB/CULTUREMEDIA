@@ -189,21 +189,50 @@ elif st.session_state.choice == "Recetas":
             st.success("Receta actualizada.")
 
 # --- 5. BAJA INVENTARIO ---
+
 elif st.session_state.choice == "Baja Inventario":
     st.header("⚠️ Registro de Bajas")
+    
     if not inv_df.empty:
-        sel_b = st.selectbox("Lote a descontar:", inv_df['Código'])
-        cant_b = st.number_input("Cantidad a retirar:", 1, 999)
-        if st.button("Confirmar Baja"):
-            idx = inv_df[inv_df['Código'] == sel_b].index[0]
-            actual = safe_int(inv_df.at[idx, 'frascos'])
-            if actual >= cant_b:
-                inv_df.at[idx, 'frascos'] = actual - cant_b
-                save_df(INV_FILE, inv_df)
-                st.success(f"Baja aplicada al lote {sel_b}.")
-                st.rerun()
-            else:
-                st.error("Stock insuficiente.")
+        # Contenedor para organizar mejor el formulario
+        with st.container(border=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                sel_b = st.selectbox("Lote a descontar:", inv_df['Código'], help="Selecciona el código del lote")
+                
+                # Obtener stock actual para validación visual
+                idx = inv_df[inv_df['Código'] == sel_b].index[0]
+                actual = safe_int(inv_df.at[idx, 'frascos'])
+                st.info(f"Stock disponible: **{actual}** frascos")
+
+            with col2:
+                # Nuevo: Selección de tipo de baja
+                tipo_baja = st.selectbox("Tipo de baja:", ["Consumo", "Merma"], 
+                                         help="Consumo: uso regular en lab. Merma: pérdida por contaminación o error.")
+                
+                cant_b = st.number_input("Cantidad a retirar:", 1, actual if actual > 0 else 1, 1)
+
+            # Opcional: Motivo o comentarios
+            comentario = st.text_input("Comentario o motivo (opcional):")
+
+            if st.button("Confirmar Movimiento", use_container_width=True):
+                if actual >= cant_b:
+                    # Actualizar el DataFrame
+                    inv_df.at[idx, 'frascos'] = actual - cant_b
+                    save_df(INV_FILE, inv_df)
+                    
+                    # Mensaje de éxito detallado
+                    st.success(f"✅ Baja aplicada: {cant_b} frascos retirados por **{tipo_baja}** del lote {sel_b}.")
+                    
+                    # Aquí podrías opcionalmente guardar esto en un archivo 'historial_bajas.csv' 
+                    # si deseas llevar una estadística de consumo vs merma.
+                    
+                    st.rerun()
+                else:
+                    st.error("❌ Stock insuficiente para realizar esta operación.")
+    else:
+        st.info("No hay lotes disponibles en el inventario para dar de baja.")
 
 # --- 6. ETIQUETAS (2.5cm x 1cm) ---
 elif st.session_state.choice == "Etiquetas":
