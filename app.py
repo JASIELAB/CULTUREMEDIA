@@ -283,30 +283,21 @@ elif st.session_state.choice == "Etiquetas":
 
 # --- 7. GESTIÓN DE CONSUMIBLES ---
 elif st.session_state.choice == "Gestión de Consumibles":
-    st.header("🧪 Gestión de Consumibles")
+    st.header("🛸 Gestión de Consumibles")
     
-    # URL de tu reporte (extraída de tu imagen de configuración)
-    url_powerbi = "https://app.powerbi.com/groups/me/reports/41f6b205-e480-4402-82f3-58eb7346fb52/35d7be038ce9180c12ae?ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122&experience=power-bi"
+    # URL de tu reporte (la de tu imagen)
+    url_powerbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122"
     
-    # Diseño con columnas para centrar el botón o añadir info
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("""
-        ### 📊 Reporte de Stock e Insumos
-        Para visualizar el inventario detallado de reactivos, soluciones madre y materiales 
-        en tiempo real, haz clic en el botón de la derecha.
+    with st.container(border=True):
+        st.subheader("📊 Inventario Externo (Power BI)")
+        st.write("Haz clic en el botón de abajo para abrir el reporte de stock de insumos en una pestaña nueva.")
         
-        **El reporte incluye:**
-        * Stock actual por artículo.
-        * Historial de entradas y salidas.
-        * Alertas de reabastecimiento.
-        """)
+        # Botón principal resaltado
+        st.link_button("📂 Abrir Reporte de Stock", url_powerbi, type="primary", use_container_width=True)
         
-    with col2:
-        st.write("##") # Espaciado visual
-        # Botón que abre el link en una pestaña nueva automáticamente
-        st.link_button("🚀 Abrir Power BI", url_powerbi, use_container_width=True)
-
     st.divider()
-    st.info("💡 **Consejo:** Una vez abierto el reporte en Power BI, puedes usar la opción de 'Pantalla Completa' para una mejor visualización de las gráficas.")
+    
+    # Si aún así quieres intentar ver una vista previa pequeña (opcional)
+    with st.expander("Ver ayuda técnica si no carga"):
+        st.write(f"Si el botón no funciona, copia y pega este enlace en tu navegador:")
+        st.code(url_powerbi)
