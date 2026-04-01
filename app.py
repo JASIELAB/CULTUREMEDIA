@@ -71,20 +71,28 @@ def save_df(path, df):
 inv_df = load_df(INV_FILE, inv_cols)
 
 # --- INTERFAZ PRINCIPAL ---
-st.title("🧪 Culture Media Control System 🫐")
+st.title("🧪 Control de Medios InVitRo")
 
+# Asegúrate de que "Gestión de Consumibles" esté en esta lista
 menu = [
-    ("Registrar Lote","📋"), ("Consultar Stock","📦"), 
-    ("Incubación","🌡️"), ("Recetas","📖"), 
-    ("Baja Inventario","⚠️"), ("Etiquetas","🖨"), ("Gestion de Consumibles","⚗️")
+    ("Registrar Lote","📋"), 
+    ("Consultar Stock","📦"), 
+    ("Incubación","🌡️"), 
+    ("Recetas","📖"), 
+    ("Baja Inventario","⚠️"), 
+    ("Etiquetas","🖨"),
+    ("Gestión de Consumibles", "🛸") # <--- Verifica que esté aquí
 ]
 
-if 'choice' not in st.session_state: st.session_state.choice = "Registrar Lote"
+if 'choice' not in st.session_state: 
+    st.session_state.choice = "Registrar Lote"
 
+# Generación de botones
 c_menu = st.columns(len(menu))
 for i, (lbl, icn) in enumerate(menu):
     if c_menu[i].button(f"{icn} {lbl}"):
         st.session_state.choice = lbl
+        st.rerun() # Forzamos el refresco al hacer clic
 
 st.divider()
 
