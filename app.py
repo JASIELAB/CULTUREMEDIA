@@ -268,7 +268,7 @@ elif st.session_state.choice == "Etiquetas":
             draw.text((tx, 150), "LOTE:", fill="black", font=f_reg)
             draw.text((tx, 172), sel_e, fill="black", font=f_bold)
 
-            st.image(img, caption="Vista previa (3.5x2 cm)")
+            st.image(img, caption="Vista previa (2.5x2 cm)")
             buf = BytesIO()
             img.save(buf, format="PNG")
             st.download_button("📥 Descargar Etiqueta", buf.getvalue(), f"QR_{sel_e}.png", "image/png")
