@@ -272,3 +272,13 @@ elif st.session_state.choice == "Etiquetas":
             buf = BytesIO()
             img.save(buf, format="PNG")
             st.download_button("📥 Descargar Etiqueta", buf.getvalue(), f"QR_{sel_e}.png", "image/png")
+
+if st.session_state.choice == "Gestión de Consumibles":
+    st.header("🛸 Gestión de Consumibles (Stock Insumos)")
+    st.info("Visualización de stock en tiempo real desde Power BI.")
+
+    # Reemplaza 'https://app.powerbi.com/groups/me/reports/41f6b205-e480-4402-82f3-58eb7346fb52/35d7be038ce9180c12ae?ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122&experience=power-bi' con el enlace que te da Power BI 
+    # en: Archivo -> Insertar informe -> Publicar en la web
+    power_bi_url = "https://app.powerbi.com/groups/me/reports/41f6b205-e480-4402-82f3-58eb7346fb52/35d7be038ce9180c12ae?ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122&experience=power-bi"
+    
+    st.components.v1.iframe(power_bi_url, height=600, scrolling=True)
