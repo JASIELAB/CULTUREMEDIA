@@ -278,7 +278,7 @@ elif st.session_state.choice == "Gestión de Consumibles":
     st.header("🧪 Gestión de Consumibles") # Título basado en tu icono
     
     # IMPORTANTE: Reemplaza ESTA URL por el enlace de "Insertar" o "Publicar en la web"
-    url_powerbi = "<iframe title="Stock" width="1140" height="541.25" src="https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122" frameborder="0" allowFullScreen="true"></iframe>" 
+    url_powerbi = "" 
     
     try:
         # Usamos iframe para embeber el reporte
