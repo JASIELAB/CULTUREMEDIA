@@ -82,7 +82,8 @@ menu = [
     ("Baja Inventario","⚠️"), 
     ("Etiquetas","🖨"),
     ("Gestión de Consumibles", "🫙"),
-    ("Pesaje", "⚖️")
+    ("Pesaje", "⚖️"),
+    ("Planificación de Producción Semanal","🗓️")
 ]
 
 if 'choice' not in st.session_state: 
@@ -344,4 +345,100 @@ elif st.session_state.choice == "Pesaje":
             )
         else:
             st.warning("Esta receta no tiene insumos registrados.")
+
+# --- 9. PLANIFICACIÓN DE PRODUCCIÓN SEMANAL ---
+elif st.session_state.choice == "Planificación":
+    st.header("🗓️ Planificación de Producción Semanal")
+    st.write("Gestiona las cargas de preparadoras y calcula insumos por semana.")
+
+    # 1. Definición de la estructura basada en tu imagen
+    if 'df_planasa' not in st.session_state:
+        # Datos iniciales de ejemplo basados en tu captura
+        data_inicial = {
+            'Variedad // Destino': ['Madeira', 'Zarzamora 17.55R', 'YOSEMITE', 'SNG3 (1545 & 1542)', 'RUBUS Establecimiento'],
+            'RECETA': ['AR-6', 'Zr-0', 'Zr-3', 'SGN 3', 'Zr-0'],
+            'CAMPAÑA': ['PLA MEX ARANDANO LAB T09', 'PLA MEX MORA LAB T00', 'PLA MEX MORA LAB T00', 'PLA MEX ARANDANO LAB T09', 'I+D / ROOTBLOK'],
+            'W9': [11, 0, 2, 3, 0], 'W10': [10, 0, 5, 2, 0], 'W11': [10, 4, 4, 0, 0],
+            'W12': [6, 9, 0, 0, 0], 'W13': [6, 0, 0, 12, 1], 'W14': [8, 0, 0, 2, 0],
+            'W15': [14, 0, 0, 3, 0], 'W16': [14, 0, 0, 6, 0], 'W17': [16, 0, 0, 4, 0],
+            'W18': [0, 0, 0, 0, 0], 'W19': [0, 0, 0, 0, 0], 'W20': [0, 0, 0, 0, 0]
+        }
+        st.session_state.df_planasa = pd.DataFrame(data_inicial)
+
+    # 2. Configuración de constantes
+    LITROS_POR_CARGA = 54.0
+    semanas_cols = [f'W{i}' for i in range(9, 21)]
+
+    # 3. Editor de la Matriz de Cargas
+    st.subheader("📝 Matriz de Cargas (54 Litros / Carga)")
+    
+    # Permitimos editar la tabla directamente
+    df_editado = st.data_editor(
+        st.session_state.df_planasa, 
+        num_rows="dynamic", 
+        use_container_width=True,
+        key="editor_plan"
+    )
+    
+    # Guardar cambios en el estado de la sesión
+    st.session_state.df_planasa = df_editado
+
+    # 4. Cálculo de Totales de Producción
+    st.divider()
+    st.subheader("📊 Resumen de Volumen (Litros)")
+
+    # Calculamos totales por semana
+    totales_litros = []
+    for sem in semanas_cols:
+        total_cargas = pd.to_numeric(df_editado[sem], errors='coerce').sum()
+        totales_litros.append(total_cargas * LITROS_POR_CARGA)
+
+    # Crear fila de totales para mostrar
+    df_resumen = pd.DataFrame([totales_litros], columns=semanas_cols)
+    df_resumen.insert(0, "Descripción", "**TOTAL LITROS SEMANALES**")
+    
+    st.dataframe(df_resumen, hide_index=True, use_container_width=True)
+
+    # 5. Cálculo Detallado de Insumos por Semana
+    st.divider()
+    col_a, col_b = st.columns([1, 2])
+    
+    with col_a:
+        st.subheader("🧪 Pesaje de Insumos")
+        semana_sel = st.selectbox("Selecciona Semana para calcular:", semanas_cols)
+    
+    # Lógica de cálculo de reactivos
+    insumos_totales = {}
+    
+    for _, fila in df_editado.iterrows():
+        receta_nombre = fila['RECETA']
+        cargas = pd.to_numeric(fila[semana_sel], errors='coerce') or 0
+        litros_fila = cargas * LITROS_POR_CARGA
+        
+        if litros_fila > 0 and receta_nombre in st.session_state.recipes_db:
+            receta_dict = st.session_state.recipes_db[receta_nombre]
+            for ingrediente, dosis in receta_dict.items():
+                if ingrediente != "pH":
+                    total_necesario = dosis * litros_fila
+                    insumos_totales[ingrediente] = insumos_totales.get(ingrediente, 0) + total_necesario
+
+    if insumos_totales:
+        resumen_insumos = []
+        for ing, cant in insumos_totales.items():
+            unidad = "g" if ing in ["Sacarosa", "Agar PTC", "MS", "WPM"] else "mg"
+            resumen_insumos.append({"Ingrediente": ing, "Cantidad Total": round(cant, 3), "Unidad": unidad})
+        
+        with col_b:
+            st.table(pd.DataFrame(resumen_insumos))
+            
+            # Botón de exportación rápida
+            csv_pesaje = pd.DataFrame(resumen_insumos).to_csv(index=False).encode('utf-8')
+            st.download_button(
+                f"📥 Descargar pesaje {semana_sel}",
+                csv_pesaje,
+                f"Pesaje_{semana_sel}.csv",
+                "text/csv"
+            )
+    else:
+        st.info(f"No hay cargas planificadas para la {semana_sel} o las recetas no coinciden.")
     
