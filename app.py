@@ -298,3 +298,50 @@ elif st.session_state.choice == "Gestión de Consumibles":
         
     st.divider()
     
+# --- 8. PLANIFICACIÓN SEMANAL ---
+elif st.session_state.choice == "Planificación":
+    st.header("🗓️ Planificación de Producción Semanal")
+    st.write("Calcula los insumos necesarios según el volumen de producción.")
+
+    with st.container(border=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            receta_sel = st.selectbox("Selecciona la Receta:", list(st.session_state.recipes_db.keys()))
+        with c2:
+            volumen = st.number_input("Litros a preparar:", min_value=0.1, value=1.0, step=0.5)
+
+    if receta_sel:
+        st.subheader(f"🧪 Formulación para {volumen} L de {receta_sel}")
+        
+        # Obtener los datos de la receta seleccionada
+        datos_receta = st.session_state.recipes_db[receta_sel]
+        
+        # Crear tabla de cálculos
+        items_plan = []
+        for insumo, concentracion in datos_receta.items():
+            if insumo != "pH": # El pH no se multiplica
+                cantidad_total = round(concentracion * volumen, 3)
+                # Determinar unidad (puedes ajustar esto según tu unidad base)
+                unidad = "g" if insumo in ["Sacarosa", "Agar PTC", "MS", "WPM"] else "mg"
+                items_plan.append({"Insumo": insumo, "Dosis unitaria": concentracion, "Total a pesar": cantidad_total, "Unidad": unidad})
+        
+        df_plan = pd.DataFrame(items_plan)
+        
+        if not df_plan.empty:
+            st.table(df_plan)
+            
+            # Resumen de pH
+            st.info(f"📌 **Recordatorio:** Ajustar pH final a **{datos_receta.get('pH', 'No definido')}**")
+            
+            # Botón para exportar planificación
+            csv = df_plan.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                "📥 Descargar Plan de Pesaje (CSV)",
+                csv,
+                f"Plan_{receta_sel}_{date.today()}.csv",
+                "text/csv",
+                key='download-csv'
+            )
+        else:
+            st.warning("Esta receta no tiene insumos registrados.")
+    
