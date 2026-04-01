@@ -297,7 +297,3 @@ elif st.session_state.choice == "Gestión de Consumibles":
         
     st.divider()
     
-    # Si aún así quieres intentar ver una vista previa pequeña (opcional)
-    with st.expander("Ver ayuda técnica si no carga"):
-        st.write(f"Si el botón no funciona, copia y pega este enlace en tu navegador:")
-        st.code(url_powerbi)
