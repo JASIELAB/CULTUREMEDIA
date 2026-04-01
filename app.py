@@ -6,145 +6,264 @@ import json
 from io import BytesIO
 from datetime import date, datetime
 from PIL import Image, ImageDraw, ImageFont
-from fpdf import FPDF
 
-# --- 1. CONFIGURACIÓN INICIAL ---
+# --- CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Sistema InVitRo", layout="wide")
 
+# --- FUNCIONES DE SEGURIDAD ---
 def safe_int(val, default=0):
-    try: return int(float(val)) if not pd.isna(val) else default
+    try:
+        if pd.isna(val) or str(val).strip() == "": return default
+        return int(float(val))
     except: return default
 
 def safe_float(val, default=0.0):
-    try: return float(val) if not pd.isna(val) else default
+    try:
+        if pd.isna(val) or str(val).strip() == "": return default
+        return float(val)
     except: return default
 
-# --- 2. PERSISTENCIA DE DATOS ---
-INV_FILE = "inventario_medios.csv"
+# --- GESTIÓN DE RECETAS ---
 RECETAS_JSON = "recetas_config.json"
 
 def load_recipes():
     default_recipes = {
-        "AR-6": {"WPM": 2.41, "Zeatina": 1.0, "AIA": 0.1, "Sacarosa": 25.0, "Agar PTC": 7.0, "pH": 5.2},
-        "SGN 3": {"WPM": 2.46, "KNO3": 500.0, "NH4NO3": 400.0, "Zeatina": 1.0, "Sacarosa": 30.0, "Agar PTC": 6.5, "pH": 5.0},
-        "Zr-0": {"MS": 4.4, "PVP": 1.0, "Sacarosa": 30.0, "Agar PTC": 7.0, "pH": 5.7}
+        "AR-6": {"WPM": 2.41, "Zeatina": 1.0, "AIA": 0.1, "FeNA-EDDHA": 50.0, "Sacarosa": 25.0, "Agar PTC": 7.0, "pH": 5.2},
+        "SGN 3": {"WPM": 2.46, "KNO3": 500.0, "NH4NO3": 400.0, "Zeatina": 1.0, "L-Glutamina": 1.178, "Sacarosa": 30.0, "Agar PTC": 6.5, "pH": 5.0},
+        "Zr-0": {"MS": 4.4, "PVP": 1.0, "Sacarosa": 30.0, "Agar PTC": 7.0, "pH": 5.7},
+        "Zr-1": {"MS": 4.4, "BAP": 0.4, "PVP": 1.0, "Sacarosa": 30.0, "Agar PTC": 7.0, "pH": 5.7},
+        "Zr-3": {"MS": 4.4, "BAP": 0.05, "PVP": 1.0, "Sacarosa": 30.0, "Agar PTC": 7.0, "pH": 5.7}
     }
     if os.path.exists(RECETAS_JSON):
-        with open(RECETAS_JSON, "r") as f: return json.load(f)
+        with open(RECETAS_JSON, "r") as f:
+            return json.load(f)
     return default_recipes
+
+def save_recipes(data):
+    with open(RECETAS_JSON, "w") as f:
+        json.dump(data, f, indent=4)
 
 if 'recipes_db' not in st.session_state:
     st.session_state.recipes_db = load_recipes()
 
-def load_inv():
-    if os.path.exists(INV_FILE):
-        df = pd.read_csv(INV_FILE, dtype=str)
-        df['frascos'] = pd.to_numeric(df['frascos'], errors='coerce').fillna(0).astype(int)
-        return df
-    return pd.DataFrame(columns=["Código", "Año", "Receta", "Equipo", "Semana", "Día", "Preparación", "frascos", "Fecha_Prep"])
-
-inv_df = load_inv()
-
-# --- 3. MENÚ PRINCIPAL ---
-st.title("🧪 Control de Medios InVitRo")
-
-menu_items = [
-    ("Registrar Lote","📋"), ("Consultar Stock","📦"), ("Incubación","🌡️"), 
-    ("Recetas","📖"), ("Baja Inventario","⚠️"), ("Etiquetas","🖨"),
-    ("Gestión de Consumibles", "🛸"), ("Pesaje", "⚖️"), ("Planificación", "🗓️")
+# --- PERSISTENCIA DE INVENTARIO ---
+INV_FILE = "inventario_medios.csv"
+inv_cols = [
+    "Código", "Año", "Receta", "Equipo", "Semana", "Día", "Preparación", 
+    "frascos", "Fecha_Prep", "pH_Inicial", "pH_Ajustado", "pH_Final", 
+    "CE_Inicial", "CE_Final", "Solucion_1", "Solucion_2", "Solucion_3"
 ]
 
-if 'choice' not in st.session_state:
+def load_df(path, cols):
+    if os.path.exists(path):
+        df = pd.read_csv(path, dtype=str)
+        if 'frascos' in df.columns:
+            df['frascos'] = pd.to_numeric(df['frascos'], errors='coerce').fillna(0).astype(int)
+        for c in cols:
+            if c not in df.columns: df[c] = ""
+        return df[cols]
+    return pd.DataFrame(columns=cols)
+
+def save_df(path, df):
+    df.to_csv(path, index=False)
+
+inv_df = load_df(INV_FILE, inv_cols)
+
+# --- INTERFAZ PRINCIPAL ---
+st.title("🧪 Control de Medios de Cultivo")
+
+menu = [
+    ("Registrar Lote","📋"), 
+    ("Consultar Stock","📦"), 
+    ("Incubación","🌡️"), 
+    ("Recetas","📖"), 
+    ("Baja Inventario","⚠️"), 
+    ("Etiquetas","🖨"),
+    ("Gestión de Consumibles", "🫙"),
+    ("Pesaje", "⚖️"),
+    ("Planificación", "🗓️")
+]
+
+if 'choice' not in st.session_state: 
     st.session_state.choice = "Registrar Lote"
 
-c_menu = st.columns(len(menu_items))
-for i, (lbl, icn) in enumerate(menu_items):
-    if c_menu[i].button(f"{icn}\n{lbl}"):
+# Generación de botones de navegación
+c_menu = st.columns(len(menu))
+for i, (lbl, icn) in enumerate(menu):
+    if c_menu[i].button(f"{icn} {lbl}"):
         st.session_state.choice = lbl
         st.rerun()
 
 st.divider()
 
-# --- SECCIÓN 1: REGISTRAR ---
+# --- LOGICA DE SECCIONES ---
+
 if st.session_state.choice == "Registrar Lote":
     st.header("📋 Registrar nuevo lote")
-    with st.form("reg"):
-        c1, c2 = st.columns(2)
-        f_prep = c1.date_input("Fecha", date.today())
+    with st.form("reg_lote"):
+        c1, c2, c3 = st.columns(3)
+        fecha_prep = c1.date_input("Fecha de Preparación", date.today())
+        year = fecha_prep.year 
         receta = c2.selectbox("Receta", list(st.session_state.recipes_db.keys()))
-        cant = st.number_input("Frascos", 1, 1000, 100)
-        if st.form_submit_button("Guardar"):
-            st.success("Lote guardado localmente (Simulación)")
+        prep_num = c3.number_input("Preparación #", 1, 100, 1)
+        
+        c4, c5 = st.columns(2)
+        frascos = c4.number_input("Cantidad Frascos", 0, 999, 1)
+        equipo = c5.selectbox("Equipo", ["Alpha", "Beta", "Gamma"])
+        
+        st.markdown("#### 🧪 Parámetros Químicos")
+        cp1, cp2, cp3 = st.columns(3)
+        ph_ini = cp1.number_input("pH Inicial", 0.0, 14.0, 0.0, format="%.2f")
+        ph_aju = cp2.number_input("pH Ajustado", 0.0, 14.0, 0.0, format="%.2f")
+        ph_fin = cp3.number_input("pH Final", 0.0, 14.0, 5.7, format="%.2f")
+        
+        ce1, ce2 = st.columns(2)
+        ce_ini = ce1.number_input("CE Inicial (mS/cm)", 0.0, 20.0, 0.0, format="%.2f")
+        ce_fin = ce2.number_input("CE Final (mS/cm)", 0.0, 20.0, 0.0, format="%.2f")
+        
+        st.markdown("#### 🧬 Soluciones Madre")
+        cs1, cs2, cs3 = st.columns(3)
+        sol_1 = cs1.text_input("Solución Madre 1 (#)")
+        sol_2 = cs2.text_input("Solución Madre 2 (#)")
+        sol_3 = cs3.text_input("Solución Madre 3 (#)")
+        
+        if st.form_submit_button("💾 Guardar Lote"):
+            sem = fecha_prep.strftime('%U')
+            dia_sem = fecha_prep.isoweekday()
+            code = f"{str(year)[2:]}{receta[:2]}Z{sem}{dia_sem}-{prep_num}"
+            new_row = [code, year, receta, equipo, sem, dia_sem, prep_num, frascos, fecha_prep.isoformat(), ph_ini, ph_aju, ph_fin, ce_ini, ce_fin, sol_1, sol_2, sol_3]
+            inv_df.loc[len(inv_df)] = new_row
+            save_df(INV_FILE, inv_df)
+            st.success(f"✅ Lote {code} registrado correctamente.")
 
-# --- SECCIÓN 2: STOCK ---
 elif st.session_state.choice == "Consultar Stock":
     st.header("📦 Inventario de Medios")
-    st.dataframe(inv_df, use_container_width=True) #
-
-# --- SECCIÓN 5: BAJA INVENTARIO ---
-elif st.session_state.choice == "Baja Inventario":
-    st.header("⚠️ Registro de Bajas") #
     if not inv_df.empty:
-        lote_sel = st.selectbox("Lote:", inv_df['Código'])
-        tipo_b = st.selectbox("Tipo:", ["Consumo", "Merma"]) #
-        cant_b = st.number_input("Cantidad:", 1, 1000, 1)
-        if st.button("Confirmar Baja"):
-            st.success(f"Baja de {cant_b} por {tipo_b} registrada.")
+        st.subheader("📊 Resumen de Stock por Receta")
+        resumen = inv_df.groupby("Receta").agg(Total_Frascos=("frascos", "sum"), Numero_Lotes=("Código", "count")).reset_index()
+        st.dataframe(resumen, hide_index=True, use_container_width=True)
+        st.divider()
+        st.subheader("📝 Detalle de Lotes")
+        st.dataframe(inv_df, use_container_width=True)
+    else:
+        st.info("No hay datos en el inventario.")
 
-# --- SECCIÓN 7: CONSUMIBLES (POWER BI) ---
+elif st.session_state.choice == "Incubación":
+    st.header("🌡️ Monitoreo de Incubación")
+    if not inv_df.empty:
+        temp_df = inv_df.copy()
+        temp_df['Fecha_Prep'] = pd.to_datetime(temp_df['Fecha_Prep'])
+        temp_df['Días'] = (pd.Timestamp(date.today()) - temp_df['Fecha_Prep']).dt.days
+        def color_inc(row):
+            d = row['Días']
+            color = 'background-color: #ffff99' if d < 7 else 'background-color: #c2f0c2' if d <= 28 else 'background-color: #ff9999'
+            return [color] * len(row)
+        st.dataframe(temp_df[['Código', 'Receta', 'Fecha_Prep', 'Días', 'frascos']].style.apply(color_inc, axis=1), use_container_width=True)
+    else:
+        st.info("No hay lotes registrados.")
+
+elif st.session_state.choice == "Recetas":
+    st.header("📖 Editor de Recetas")
+    rec_name = st.selectbox("Seleccionar Receta:", list(st.session_state.recipes_db.keys()))
+    ingredientes = ["WPM", "MS", "KNO3", "NH4NO3", "CaCl2", "Ca(NO3)2-4H2O", "MgSO4 7H2O", "KH2PO4", "MnSO4 H2O", "ZnSO4 7H2O", "BAP", "Zeatina", "AIA", "FeNA-EDDHA", "PVP", "L-Glutamina", "Sacarosa", "Agar PTC", "pH"]
+    with st.form("edit_rec"):
+        c = st.columns(3)
+        updates = {}
+        for i, ing in enumerate(ingredientes):
+            val = safe_float(st.session_state.recipes_db[rec_name].get(ing, 0.0))
+            updates[ing] = c[i % 3].number_input(ing, value=val, format="%.3f")
+        if st.form_submit_button("💾 Guardar Receta"):
+            st.session_state.recipes_db[rec_name] = {k: v for k, v in updates.items() if v != 0 or k == "pH"}
+            save_recipes(st.session_state.recipes_db)
+            st.success("Receta actualizada.")
+
+elif st.session_state.choice == "Baja Inventario":
+    st.header("⚠️ Registro de Bajas")
+    if not inv_df.empty:
+        with st.container(border=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                sel_b = st.selectbox("Lote a descontar:", inv_df['Código'])
+                idx = inv_df[inv_df['Código'] == sel_b].index[0]
+                actual = safe_int(inv_df.at[idx, 'frascos'])
+                st.info(f"Stock disponible: **{actual}**")
+            with col2:
+                tipo_baja = st.selectbox("Tipo de baja:", ["Consumo", "Merma"])
+                cant_b = st.number_input("Cantidad:", 1, actual if actual > 0 else 1, 1)
+            if st.button("Confirmar Movimiento", use_container_width=True):
+                inv_df.at[idx, 'frascos'] = actual - cant_b
+                save_df(INV_FILE, inv_df)
+                st.success("Baja aplicada.")
+                st.rerun()
+
+elif st.session_state.choice == "Etiquetas":
+    st.header("🖨 Generador de Etiquetas")
+    if not inv_df.empty:
+        sel_e = st.selectbox("Lote:", inv_df['Código'])
+        lote_info = inv_df[inv_df['Código'] == sel_e].iloc[0]
+        if st.button("Generar Etiqueta"):
+            width, height = 413, 236
+            img = Image.new('RGB', (width, height), color=(255, 255, 255))
+            qr = qrcode.QRCode(box_size=4, border=1)
+            qr.add_data(sel_e)
+            qr.make(fit=True)
+            qr_img = qr.make_image().resize((180, 180))
+            img.paste(qr_img, (10, 28))
+            draw = ImageDraw.Draw(img)
+            draw.text((200, 52), lote_info['Receta'], fill="black")
+            st.image(img)
+
 elif st.session_state.choice == "Gestión de Consumibles":
-    st.header("🛸 Gestión de Consumibles")
-    url_pbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b" #
-    st.link_button("🚀 Abrir Power BI en pestaña nueva", url_pbi, type="primary")
-    st.info("Haz clic arriba para ver el stock en tiempo real.")
+    st.header("🫙 Gestión de Consumibles")
+    url_pbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122"
+    st.link_button("📂 Abrir Reporte de Stock", url_pbi, type="primary", use_container_width=True)
 
-# --- SECCIÓN 8: PESAJE INDIVIDUAL ---
 elif st.session_state.choice == "Pesaje":
-    st.header("⚖️ Cálculo de Pesaje")
-    rec_p = st.selectbox("Receta para pesar:", list(st.session_state.recipes_db.keys()))
-    litros = st.number_input("Litros a preparar:", 0.1, 500.0, 1.0)
-    if rec_p:
-        f = st.session_state.recipes_db[rec_p]
-        res = [{"Insumo": k, "Total": round(v*litros, 3)} for k, v in f.items() if k != "pH"]
-        st.table(pd.DataFrame(res))
+    st.header("⚖️ PESAJE")
+    c1, c2 = st.columns(2)
+    receta_sel = c1.selectbox("Receta:", list(st.session_state.recipes_db.keys()))
+    volumen = c2.number_input("Litros:", 0.1, 500.0, 1.0)
+    if receta_sel:
+        datos = st.session_state.recipes_db[receta_sel]
+        items = [{"Insumo": k, "Total": round(v*volumen, 3), "Unidad": "g" if k in ["Sacarosa", "Agar PTC", "MS", "WPM"] else "mg"} for k, v in datos.items() if k != "pH"]
+        st.table(pd.DataFrame(items))
 
-# --- SECCIÓN 9: PLANIFICACIÓN SEMANAL ---
+# --- SECCIÓN 9: PLANIFICACIÓN (Corregida) ---
 elif st.session_state.choice == "Planificación":
     st.header("🗓️ Planificación de Producción Semanal")
-    
     if 'df_plan_9' not in st.session_state:
-        # Datos iniciales basados en tu imagen
-        data_p = {
+        data_plan = {
             'Variedad // Destino': ['Madeira', 'Zarzamora 17.55R', 'YOSEMITE', 'SNG3'],
             'RECETA': ['AR-6', 'Zr-0', 'Zr-3', 'SGN 3'],
-            'CAMPAÑA': ['PLA MEX ARANDANO', 'PLA MEX MORA', 'PLA MEX MORA', 'PLA MEX ARANDANO'],
-            'W11': [10, 4, 4, 0], 'W12': [6, 9, 0, 0], 'W13': [6, 0, 0, 12]
+            'CAMPAÑA': ['PLANASA ARANDANO', 'PLANASA MORA', 'PLANASA MORA', 'PLANASA ARANDANO'],
+            'W11': [10, 4, 4, 0], 'W12': [6, 9, 0, 0], 'W13': [6, 0, 0, 12],
+            'W14': [0, 0, 0, 0], 'W15': [0, 0, 0, 0]
         }
-        st.session_state.df_plan_9 = pd.DataFrame(data_p)
+        st.session_state.df_plan_9 = pd.DataFrame(data_plan)
 
-    # Matriz editable
-    df_ed = st.data_editor(st.session_state.df_plan_9, num_rows="dynamic", use_container_width=True)
+    # Editor de matriz
+    df_ed = st.data_editor(st.session_state.df_plan_9, num_rows="dynamic", use_container_width=True, key="matriz_plan")
     st.session_state.df_plan_9 = df_ed
 
-    # Cálculo de litros (Cargas * 54L)
-    semanas = [c for c in df_ed.columns if c.startswith('W')]
+    # Totales Litros
     L_CARGA = 54.0
-    
+    semanas = [c for c in df_ed.columns if c.startswith('W')]
     st.subheader("📊 Totales Semanales (Litros)")
-    totales = {s: [pd.to_numeric(df_ed[s], errors='coerce').sum() * L_CARGA] for s in semanas}
-    df_tot = pd.DataFrame(totales)
-    st.dataframe(df_tot.style.background_gradient(cmap='Greens', axis=1), hide_index=True)
+    t_litros = [pd.to_numeric(df_ed[s], errors='coerce').sum() * L_CARGA for s in semanas]
+    st.dataframe(pd.DataFrame([t_litros], columns=semanas, index=["Total Litros"]).style.background_gradient(cmap='Greens', axis=1))
 
-    # Cálculo de Insumos por Semana Seleccionada
+    # Pesaje por semana
     st.divider()
-    sem_sel = st.selectbox("Calcular insumos para:", semanas)
-    insumos_acu = {}
-    for _, r in df_ed.iterrows():
-        l_fila = (pd.to_numeric(r[sem_sel], errors='coerce') or 0) * L_CARGA
-        if l_fila > 0 and r['RECETA'] in st.session_state.recipes_db:
-            for ing, dosis in st.session_state.recipes_db[r['RECETA']].items():
+    s_sel = st.selectbox("Selecciona semana para calcular pesaje total:", semanas)
+    insumos_total = {}
+    for _, fila in df_ed.iterrows():
+        litros_f = (pd.to_numeric(fila[s_sel], errors='coerce') or 0) * L_CARGA
+        if litros_f > 0 and fila['RECETA'] in st.session_state.recipes_db:
+            for ing, dos in st.session_state.recipes_db[fila['RECETA']].items():
                 if ing != "pH":
-                    insumos_acu[ing] = insumos_acu.get(ing, 0) + (dosis * l_fila)
+                    insumos_total[ing] = insumos_total.get(ing, 0) + (dos * litros_f)
     
-    if insumos_acu:
-        st.table(pd.DataFrame([{"Insumo": k, "Cantidad": round(v, 2)} for k, v in insumos_acu.items()]))
+    if insumos_total:
+        st.write(f"### 🧪 Insumos totales para {s_sel}")
+        res_ins = [{"Insumo": k, "Cantidad": round(v, 2), "Unidad": "g" if k in ["Sacarosa", "Agar PTC", "MS", "WPM"] else "mg"} for k, v in insumos_total.items()]
+        st.table(pd.DataFrame(res_ins))
