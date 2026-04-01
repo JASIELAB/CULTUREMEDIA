@@ -272,3 +272,17 @@ elif st.session_state.choice == "Etiquetas":
             buf = BytesIO()
             img.save(buf, format="PNG")
             st.download_button("📥 Descargar Etiqueta", buf.getvalue(), f"QR_{sel_e}.png", "image/png")
+
+# --- 7. GESTIÓN DE CONSUMIBLES ---
+elif st.session_state.choice == "Gestión de Consumibles":
+    st.header("🧪 Gestión de Consumibles") # Título basado en tu icono
+    
+    # IMPORTANTE: Reemplaza ESTA URL por el enlace de "Insertar" o "Publicar en la web"
+    url_powerbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122" 
+    
+    try:
+        # Usamos iframe para embeber el reporte
+        st.components.v1.iframe(url_powerbi, height=800, scrolling=True)
+    except Exception as e:
+        st.error(f"No se pudo cargar el reporte. Error: {e}")
+        st.info("Asegúrate de que el reporte esté publicado y el link sea el de 'Insertar informe'.")
