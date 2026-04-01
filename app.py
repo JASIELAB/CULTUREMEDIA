@@ -76,7 +76,7 @@ st.title("🧪 Culture Media Control System 🫐")
 menu = [
     ("Registrar Lote","📋"), ("Consultar Stock","📦"), 
     ("Incubación","🌡️"), ("Recetas","📖"), 
-    ("Baja Inventario","⚠️"), ("Etiquetas","🖨"), ("Gestion de consumibles","⚗️")
+    ("Baja Inventario","⚠️"), ("Etiquetas","🖨"), ("Gestion de Consumibles","⚗️")
 ]
 
 if 'choice' not in st.session_state: st.session_state.choice = "Registrar Lote"
