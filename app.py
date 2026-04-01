@@ -71,7 +71,7 @@ def save_df(path, df):
 inv_df = load_df(INV_FILE, inv_cols)
 
 # --- INTERFAZ PRINCIPAL ---
-st.title("🧪 Sistema de Control de Medios 🫐")
+st.title("🧪 Culture Media Control System 🫐")
 
 menu = [
     ("Registrar Lote","📋"), ("Consultar Stock","📦"), 
