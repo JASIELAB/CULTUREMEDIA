@@ -278,7 +278,7 @@ elif st.session_state.choice == "Gestión de Consumibles":
     st.header("🧪 Gestión de Consumibles")
     
     # URL de tu reporte (extraída de tu imagen de configuración)
-    url_powerbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122"
+    url_powerbi = "https://app.powerbi.com/groups/me/reports/41f6b205-e480-4402-82f3-58eb7346fb52/35d7be038ce9180c12ae?ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122&experience=power-bi"
     
     # Diseño con columnas para centrar el botón o añadir info
     col1, col2 = st.columns([2, 1])
