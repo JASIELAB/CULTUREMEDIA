@@ -273,16 +273,32 @@ elif st.session_state.choice == "Etiquetas":
             img.save(buf, format="PNG")
             st.download_button("📥 Descargar Etiqueta", buf.getvalue(), f"QR_{sel_e}.png", "image/png")
 
+# --- 7. GESTIÓN DE CONSUMIBLES ---
 elif st.session_state.choice == "Gestión de Consumibles":
     st.header("🧪 Gestión de Consumibles")
     
-    url_secure = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122"
+    # URL de tu reporte (extraída de tu imagen de configuración)
+    url_powerbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122"
+    
+    # Diseño con columnas para centrar el botón o añadir info
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        ### 📊 Reporte de Stock e Insumos
+        Para visualizar el inventario detallado de reactivos, soluciones madre y materiales 
+        en tiempo real, haz clic en el botón de la derecha.
+        
+        **El reporte incluye:**
+        * Stock actual por artículo.
+        * Historial de entradas y salidas.
+        * Alertas de reabastecimiento.
+        """)
+        
+    with col2:
+        st.write("##") # Espaciado visual
+        # Botón que abre el link en una pestaña nueva automáticamente
+        st.link_button("🚀 Abrir Power BI", url_powerbi, use_container_width=True)
 
-    # Agregamos un botón de auxilio por si el iframe falla
-    st.warning("⚠️ Si el panel no carga abajo, usa el botón azul para abrirlo en una pestaña nueva e iniciar sesión.")
-    st.link_button("🚀 Abrir Reporte a pantalla completa", url_secure)
-    
     st.divider()
-    
-    # El iframe
-    st.components.v1.iframe(url_secure, height=600, scrolling=True)
+    st.info("💡 **Consejo:** Una vez abierto el reporte en Power BI, puedes usar la opción de 'Pantalla Completa' para una mejor visualización de las gráficas.")
