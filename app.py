@@ -82,7 +82,7 @@ menu = [
     ("Baja Inventario","⚠️"), 
     ("Etiquetas","🖨"),
     ("Gestión de Consumibles", "🫙"),
-    ("Planificación", "🗓️")
+    ("Pesaje", "⚖️")
 ]
 
 if 'choice' not in st.session_state: 
@@ -298,9 +298,9 @@ elif st.session_state.choice == "Gestión de Consumibles":
         
     st.divider()
     
-# --- 8. PLANIFICACIÓN SEMANAL ---
+# --- 8. PESAJE ---
 elif st.session_state.choice == "Planificación":
-    st.header("🗓️ Planificación de Producción Semanal")
+    st.header("⚖️ PESAJE")
     st.write("Calcula los insumos necesarios según el volumen de producción.")
 
     with st.container(border=True):
