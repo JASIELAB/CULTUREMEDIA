@@ -71,7 +71,7 @@ def save_df(path, df):
 inv_df = load_df(INV_FILE, inv_cols)
 
 # --- INTERFAZ PRINCIPAL ---
-st.title("🧪 Control de Medios InVitRo")
+st.title("🧪 Sistema de Control de Medios 🫐")
 
 menu = [
     ("Registrar Lote","📋"), ("Consultar Stock","📦"), 
