@@ -299,7 +299,7 @@ elif st.session_state.choice == "Gestión de Consumibles":
     st.divider()
     
 # --- 8. PESAJE ---
-elif st.session_state.choice == "Planificación":
+elif st.session_state.choice == "Pesaje":
     st.header("⚖️ PESAJE")
     st.write("Calcula los insumos necesarios según el volumen de producción.")
 
