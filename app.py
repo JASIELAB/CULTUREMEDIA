@@ -81,7 +81,8 @@ menu = [
     ("Recetas","📖"), 
     ("Baja Inventario","⚠️"), 
     ("Etiquetas","🖨"),
-    ("Gestión de Consumibles", "🫙") # <--- Verifica que esté aquí
+    ("Gestión de Consumibles", "🫙"),
+    (("Planificación", "🗓️")
 ]
 
 if 'choice' not in st.session_state: 
