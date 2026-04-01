@@ -228,42 +228,101 @@ elif st.session_state.choice == "Pesaje":
         items = [{"Insumo": k, "Total": round(v*volumen, 3), "Unidad": "g" if k in ["Sacarosa", "Agar PTC", "MS", "WPM"] else "mg"} for k, v in datos.items() if k != "pH"]
         st.table(pd.DataFrame(items))
 
-# --- SECCIÓN 9: PLANIFICACIÓN (Corregida) ---
+# --- 9. PLANIFICACIÓN DE PRODUCCIÓN SEMANAL ---
 elif st.session_state.choice == "Planificación":
     st.header("🗓️ Planificación de Producción Semanal")
+    st.info("Factor de conversión: 54 Litros por Carga.")
+
+    # 1. Inicialización robusta del DataFrame
     if 'df_plan_9' not in st.session_state:
-        data_plan = {
-            'Variedad // Destino': ['Madeira', 'Zarzamora 17.55R', 'YOSEMITE', 'SNG3'],
-            'RECETA': ['AR-6', 'Zr-0', 'Zr-3', 'SGN 3'],
-            'CAMPAÑA': ['PLANASA ARANDANO', 'PLANASA MORA', 'PLANASA MORA', 'PLANASA ARANDANO'],
-            'W11': [10, 4, 4, 0], 'W12': [6, 9, 0, 0], 'W13': [6, 0, 0, 12],
-            'W14': [0, 0, 0, 0], 'W15': [0, 0, 0, 0]
+        data_planasa = {
+            'Variedad // Destino': ['Madeira', 'Zarzamora 17.55R', 'YOSEMITE', 'SNG3 (1545 & 1542)', 'RUBUS Establecimiento'],
+            'RECETA': ['AR-6', 'Zr-0', 'Zr-3', 'SGN 3', 'Zr-0'],
+            'CAMPAÑA': ['PLA MEX ARANDANO', 'PLA MEX MORA', 'PLA MEX MORA', 'PLA MEX ARANDANO', 'I+D ROOTBLOK'],
+            'W9': [11, 0, 2, 3, 0], 'W10': [10, 0, 5, 2, 0], 'W11': [10, 4, 4, 0, 0],
+            'W12': [6, 9, 0, 0, 0], 'W13': [6, 0, 0, 12, 1], 'W14': [8, 0, 0, 2, 0]
         }
-        st.session_state.df_plan_9 = pd.DataFrame(data_plan)
+        st.session_state.df_plan_9 = pd.DataFrame(data_planasa)
 
-    # Editor de matriz
-    df_ed = st.data_editor(st.session_state.df_plan_9, num_rows="dynamic", use_container_width=True, key="matriz_plan")
-    st.session_state.df_plan_9 = df_ed
+    # 2. Editor de datos con manejo de filas dinámicas
+    df_editado = st.data_editor(
+        st.session_state.df_plan_9,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="editor_plan_final"
+    )
+    st.session_state.df_plan_9 = df_editado
 
-    # Totales Litros
-    L_CARGA = 54.0
-    semanas = [c for c in df_ed.columns if c.startswith('W')]
-    st.subheader("📊 Totales Semanales (Litros)")
-    t_litros = [pd.to_numeric(df_ed[s], errors='coerce').sum() * L_CARGA for s in semanas]
-    st.dataframe(pd.DataFrame([t_litros], columns=semanas, index=["Total Litros"]).style.background_gradient(cmap='Greens', axis=1))
-
-    # Pesaje por semana
-    st.divider()
-    s_sel = st.selectbox("Selecciona semana para calcular pesaje total:", semanas)
-    insumos_total = {}
-    for _, fila in df_ed.iterrows():
-        litros_f = (pd.to_numeric(fila[s_sel], errors='coerce') or 0) * L_CARGA
-        if litros_f > 0 and fila['RECETA'] in st.session_state.recipes_db:
-            for ing, dos in st.session_state.recipes_db[fila['RECETA']].items():
-                if ing != "pH":
-                    insumos_total[ing] = insumos_total.get(ing, 0) + (dos * litros_f)
+    # 3. Cálculo de Totales de Litros
+    LITROS_CARGA = 54.0
+    # Identificamos solo las columnas que empiezan con 'W'
+    cols_semanas = [c for c in df_editado.columns if c.startswith('W')]
     
-    if insumos_total:
-        st.write(f"### 🧪 Insumos totales para {s_sel}")
-        res_ins = [{"Insumo": k, "Cantidad": round(v, 2), "Unidad": "g" if k in ["Sacarosa", "Agar PTC", "MS", "WPM"] else "mg"} for k, v in insumos_total.items()]
-        st.table(pd.DataFrame(res_ins))
+    if cols_semanas:
+        st.subheader("📊 Resumen de Volumen Total (Litros)")
+        
+        totales_lista = []
+        for sem in cols_semanas:
+            # Convertimos a número y lo que sea error (vacío/texto) se vuelve 0
+            suma_cargas = pd.to_numeric(df_editado[sem], errors='coerce').fillna(0).sum()
+            totales_lista.append(suma_cargas * LITROS_CARGA)
+        
+        # Crear tabla de resumen horizontal
+        df_totales_view = pd.DataFrame([totales_lista], columns=cols_semanas, index=["Total Litros"])
+        
+        # Aplicamos estilo visual (Verde para destacar totales)
+        st.dataframe(
+            df_totales_view.style.format("{:.1f} L").background_gradient(cmap='Greens', axis=1),
+            use_container_width=True
+        )
+
+        # 4. Cálculo Detallado de Insumos (Cruze con Recetas)
+        st.divider()
+        col_input, col_result = st.columns([1, 2])
+        
+        with col_input:
+            st.subheader("🧪 Explosión de Insumos")
+            semana_activa = st.selectbox("Selecciona semana para pesaje:", cols_semanas)
+            st.write(f"Calculando insumos para todas las recetas de la **{semana_activa}**.")
+
+        # Diccionario para acumular gramos/miligramos
+        acumulador_quimicos = {}
+        
+        for _, fila in df_editado.iterrows():
+            receta_nombre = str(fila['RECETA']).strip()
+            # Validamos que la receta exista en nuestra base de datos (Sección 4)
+            cant_cargas = pd.to_numeric(fila[semana_activa], errors='coerce') or 0
+            litros_semana = cant_cargas * LITROS_CARGA
+            
+            if litros_semana > 0 and receta_nombre in st.session_state.recipes_db:
+                receta_base = st.session_state.recipes_db[receta_nombre]
+                for ingrediente, dosis in receta_base.items():
+                    if ingrediente != "pH":
+                        # Acumulamos: dosis * litros totales de esa receta en la semana
+                        total_necesario = dosis * litros_semana
+                        acumulador_quimicos[ingrediente] = acumulador_quimicos.get(ingrediente, 0) + total_necesario
+
+        with col_result:
+            if acumulador_quimicos:
+                # Formatear para mostrar en tabla
+                lista_final = []
+                for ing, total in acumulador_quimicos.items():
+                    # Lógica de unidades: g para macros, mg para el resto
+                    uni = "g" if ing in ["Sacarosa", "Agar PTC", "MS", "WPM", "KNO3", "NH4NO3"] else "mg"
+                    lista_final.append({"Insumo": ing, "Cantidad Total": round(total, 3), "Unidad": uni})
+                
+                df_resumen_insumos = pd.DataFrame(lista_final)
+                st.table(df_resumen_insumos)
+                
+                # Botón de descarga para el pesador
+                csv_data = df_resumen_insumos.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label=f"📥 Descargar Lista de Pesaje {semana_activa}",
+                    data=csv_data,
+                    file_name=f"Pesaje_Semana_{semana_activa}.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.warning("⚠️ No hay datos de producción o las recetas no coinciden con la base de datos.")
+    else:
+        st.error("No se detectaron columnas de semanas (deben empezar con 'W').")
