@@ -83,7 +83,6 @@ menu = [
     ("Etiquetas","🖨"),
     ("Gestión de Consumibles", "🫙"),
     ("Pesaje", "⚖️"),
-    ("Planificación de Producción Semanal","🗓️")
 ]
 
 if 'choice' not in st.session_state: 
