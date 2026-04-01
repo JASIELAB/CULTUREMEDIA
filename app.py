@@ -278,7 +278,7 @@ elif st.session_state.choice == "Gestión de Consumibles":
     st.header("🧪 Gestión de Consumibles")
     
     # URL extraída de tu imagen de configuración de vínculo
-    url_powerbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b6f7-4b7e-a7b1-9b9975295122"
+    url_powerbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b"
     
     st.info("💡 Nota: Si el reporte no carga, asegúrate de haber iniciado sesión en Power BI en otra pestaña de este mismo navegador.")
 
