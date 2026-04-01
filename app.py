@@ -273,14 +273,16 @@ elif st.session_state.choice == "Etiquetas":
             img.save(buf, format="PNG")
             st.download_button("📥 Descargar Etiqueta", buf.getvalue(), f"QR_{sel_e}.png", "image/png")
 
-# --- 7. GESTIÓN DE CONSUMIBLES ---
 elif st.session_state.choice == "Gestión de Consumibles":
     st.header("🧪 Gestión de Consumibles")
     
-    # URL extraída de tu imagen de configuración de vínculo
-    url_powerbi = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b"
-    
-    st.info("💡 Nota: Si el reporte no carga, asegúrate de haber iniciado sesión en Power BI en otra pestaña de este mismo navegador.")
+    url_secure = "https://app.powerbi.com/reportEmbed?reportId=41f6b205-e480-4402-82f3-58eb7346fb52&autoAuth=true&ctid=1d8e7719-b"
 
-    # Insertamos el reporte usando el componente de iframe
-    st.components.v1.iframe(url_powerbi, height=600, scrolling=True)
+    # Agregamos un botón de auxilio por si el iframe falla
+    st.warning("⚠️ Si el panel no carga abajo, usa el botón azul para abrirlo en una pestaña nueva e iniciar sesión.")
+    st.link_button("🚀 Abrir Reporte a pantalla completa", url_secure)
+    
+    st.divider()
+    
+    # El iframe
+    st.components.v1.iframe(url_secure, height=600, scrolling=True)
